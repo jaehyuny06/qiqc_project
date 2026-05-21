@@ -15,26 +15,26 @@ import numpy as np
 from matplotlib.axes import Axes
 from numpy.typing import NDArray
 
-from channel_utils import (
-    I2,
-    PAULIS,
-    amplitude_damping_kraus,
-    bit_flip_kraus,
-    depolarizing_kraus,
-    identity_kraus,
-    is_cp,
-    is_tp,
-    kraus_to_choi,
+from choi_common.channels import (
+    amplitude_damping_channel,
+    bit_flip_channel,
+    depolarizing_channel,
+    identity_channel,
     mixed_choi,
-    partial_trace_output,
-    pauli_kraus,
-    phase_damping_kraus,
-    phase_flip_kraus,
-    unital_choi,
+    pauli_channel,
+    pauli_matrices,
+    phase_damping_channel,
+    phase_flip_channel,
+    unital_qubit_channel_choi,
 )
+from choi_common.representations import apply_choi_channel, kraus_to_choi
+from choi_common.validation import is_cp, is_tp, partial_trace_output
 
 
 Array = NDArray[np.complex128]
+_PAULI_DICT = pauli_matrices()
+I2: Array = _PAULI_DICT["I"]
+PAULIS: tuple[Array, Array, Array] = (_PAULI_DICT["X"], _PAULI_DICT["Y"], _PAULI_DICT["Z"])
 PALETTE: dict[str, str] = {
     "blue": "#2563eb",
     "green": "#16a34a",
@@ -75,27 +75,29 @@ def get_channel_choi(channel_type: str, params: Mapping[str, Any] | None = None)
     params = dict(params or {})
     normalized = channel_type.strip().lower().replace("_", " ")
     if normalized == "identity":
-        return kraus_to_choi(identity_kraus())
+        return kraus_to_choi(identity_channel(2))
     if normalized == "depolarizing":
-        return kraus_to_choi(depolarizing_kraus(float(params.get("p", 0.2))))
+        return kraus_to_choi(
+            depolarizing_channel(float(params.get("p", 0.2)), d=2, convention="pauli_error")
+        )
     if normalized == "amplitude damping":
-        return kraus_to_choi(amplitude_damping_kraus(float(params.get("gamma", 0.25))))
+        return kraus_to_choi(amplitude_damping_channel(float(params.get("gamma", 0.25))))
     if normalized == "phase damping":
-        return kraus_to_choi(phase_damping_kraus(float(params.get("gamma", 0.25))))
+        return kraus_to_choi(phase_damping_channel(float(params.get("gamma", 0.25))))
     if normalized == "bit flip":
-        return kraus_to_choi(bit_flip_kraus(float(params.get("p", 0.2))))
+        return kraus_to_choi(bit_flip_channel(float(params.get("p", 0.2))))
     if normalized == "phase flip":
-        return kraus_to_choi(phase_flip_kraus(float(params.get("p", 0.2))))
+        return kraus_to_choi(phase_flip_channel(float(params.get("p", 0.2))))
     if normalized == "pauli":
         return kraus_to_choi(
-            pauli_kraus(
+            pauli_channel(
                 float(params.get("p_x", 0.08)),
                 float(params.get("p_y", 0.04)),
                 float(params.get("p_z", 0.12)),
             )
         )
     if normalized == "unital":
-        return unital_choi(
+        return unital_qubit_channel_choi(
             float(params.get("lambda_x", 0.75)),
             float(params.get("lambda_y", 0.55)),
             float(params.get("lambda_z", 0.35)),
@@ -246,7 +248,7 @@ def compute_indicators(choi: Array) -> dict[str, float | bool | int]:
     hermitian = 0.5 * (choi + choi.conj().T)
     eigvals = np.linalg.eigvalsh(hermitian)
     cp_flag = is_cp(choi)
-    tp_flag = is_tp(choi)
+    tp_flag = is_tp(choi, d_in=2, d_out=2)
     identity_choi = get_channel_choi("Identity", {})
     identity_overlap = float(np.real(np.trace(choi @ identity_choi)) / 4.0)
 
@@ -255,7 +257,7 @@ def compute_indicators(choi: Array) -> dict[str, float | bool | int]:
     depol_p = float(np.clip(0.75 * (1.0 - mean_shrink), 0.0, 1.0))
     depol_choi = get_channel_choi("Depolarizing", {"p": depol_p})
     depolarized_overlap = float(np.real(np.trace(choi @ depol_choi)) / 4.0)
-    tp_residual = float(np.linalg.norm(partial_trace_output(choi) - I2))
+    tp_residual = float(np.linalg.norm(partial_trace_output(choi, d_in=2, d_out=2) - I2))
 
     return {
         "is_cp": cp_flag,
@@ -381,64 +383,18 @@ def bloch_affine_map(choi: Array) -> tuple[NDArray[np.float64], NDArray[np.float
     tuple[numpy.ndarray, numpy.ndarray]
         Real ``3 x 3`` matrix and real length-3 translation vector.
     """
-    output_identity = apply_choi_to_state(choi, I2 / 2.0)
+    output_identity = apply_choi_channel(choi, I2 / 2.0, d_in=2, d_out=2)
     offset = np.array([np.real(np.trace(output_identity @ pauli)) for pauli in PAULIS])
     matrix = np.zeros((3, 3), dtype=float)
     for column, pauli_in in enumerate(PAULIS):
         rho = (I2 + pauli_in) / 2.0
-        out = apply_choi_to_state(choi, rho)
+        out = apply_choi_channel(choi, rho, d_in=2, d_out=2)
         bloch = np.array([np.real(np.trace(out @ pauli_out)) for pauli_out in PAULIS])
         matrix[:, column] = bloch - offset
     return matrix, offset
 
 
-def apply_choi_channel(
-    choi: Array,
-    rho: Array,
-    d_in: int | None = None,
-    d_out: int | None = None,
-) -> Array:
-    """Apply a qubit map directly from its Choi matrix.
-
-    This wrapper follows the project-wide helper name and argument order.  The
-    Agent-5 widget is intentionally qubit-only, so ``d_in`` and ``d_out`` may
-    be omitted or set to ``2``.
-
-    Parameters
-    ----------
-    choi:
-        Unnormalized Choi matrix ``C_E`` using the input-first convention.
-    rho:
-        Qubit input density matrix.
-    d_in, d_out:
-        Optional dimensions.  Only ``2`` is supported by this widget.
-
-    Returns
-    -------
-    numpy.ndarray
-        Channel output, computed linearly from Choi blocks.
-    """
-    if d_in not in (None, 2) or d_out not in (None, 2):
-        raise ValueError("Agent-5 widget supports only qubit channels with d_in=d_out=2.")
-    choi = np.asarray(choi, dtype=complex)
-    rho = np.asarray(rho, dtype=complex)
-    if choi.shape != (4, 4):
-        raise ValueError("Qubit Choi matrix must have shape (4, 4).")
-    if rho.shape != (2, 2):
-        raise ValueError("Qubit input state rho must have shape (2, 2).")
-    blocks = choi.reshape(2, 2, 2, 2)
-    output = np.einsum("ij,ibjo->bo", rho, blocks)
-    return 0.5 * (output + output.conj().T)
-
-
-def apply_choi_to_state(choi: Array, rho: Array) -> Array:
-    """Backward-compatible alias for :func:`apply_choi_channel`.
-
-    The widget's original helper name is retained for existing notebook and
-    test callers; new integration-facing code should use
-    :func:`apply_choi_channel`.
-    """
-    return apply_choi_channel(choi, rho, d_in=2, d_out=2)
+apply_choi_to_state = apply_choi_channel
 
 
 def render_dashboard_figure(choi: Array, title: str = "Channel") -> plt.Figure:

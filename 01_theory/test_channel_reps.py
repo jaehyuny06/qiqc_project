@@ -5,27 +5,28 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from channel_reps import (
+from choi_common.channels import (
     amplitude_damping_channel,
-    apply_channel,
     bit_flip_channel,
-    choi_rank,
-    choi_to_kraus,
-    choi_to_natural,
-    compose_channels_choi,
     depolarizing_channel,
     identity_channel,
-    is_cp,
-    is_tp,
-    is_unital,
-    kraus_to_choi,
-    kraus_to_stinespring,
-    natural_to_choi,
     pauli_channel,
     phase_damping_channel,
     phase_flip_channel,
-    random_channel,
+)
+from choi_common.representations import (
+    apply_kraus_channel,
+    choi_to_kraus,
+    choi_to_natural,
+    compose_choi_channels,
+    kraus_to_choi,
+    kraus_to_stinespring,
+    natural_to_choi,
     stinespring_to_kraus,
+)
+from choi_common.validation import choi_rank, is_cp, is_tp, is_unital
+from channel_reps import (
+    random_channel,
 )
 
 
@@ -36,8 +37,8 @@ def assert_channel_outputs_close(kraus_a: list[np.ndarray], kraus_b: list[np.nda
             basis = np.zeros((d_in, d_in), dtype=complex)
             basis[i, j] = 1
             np.testing.assert_allclose(
-                apply_channel(basis, kraus_a),
-                apply_channel(basis, kraus_b),
+                apply_kraus_channel(basis, kraus_a),
+                apply_kraus_channel(basis, kraus_b),
                 atol=1e-10,
             )
 
@@ -67,14 +68,14 @@ def test_standard_channels_are_cp_and_tp() -> None:
 
 def test_amplitude_damping_maps_excited_state_downward() -> None:
     rho_one = np.array([[0, 0], [0, 1]], dtype=complex)
-    out = apply_channel(rho_one, amplitude_damping_channel(0.3))
+    out = apply_kraus_channel(rho_one, amplitude_damping_channel(0.3))
     expected = np.array([[0.3, 0], [0, 0.7]], dtype=complex)
     np.testing.assert_allclose(out, expected, atol=1e-12)
 
 
 def test_phase_damping_reduces_coherence() -> None:
     rho = np.array([[0.5, 0.5], [0.5, 0.5]], dtype=complex)
-    out = apply_channel(rho, phase_damping_channel(0.25))
+    out = apply_kraus_channel(rho, phase_damping_channel(0.25))
     expected = np.array([[0.5, 0.375], [0.375, 0.5]], dtype=complex)
     np.testing.assert_allclose(out, expected, atol=1e-12)
 
@@ -114,7 +115,10 @@ def test_natural_round_trip_non_square_channel() -> None:
 def test_compose_bit_flip_channels_has_expected_probability() -> None:
     p = 0.2
     q = 0.3
-    composed = compose_channels_choi(kraus_to_choi(bit_flip_channel(p)), kraus_to_choi(bit_flip_channel(q)))
+    composed = compose_choi_channels(
+        choi_after=kraus_to_choi(bit_flip_channel(q)),
+        choi_before=kraus_to_choi(bit_flip_channel(p)),
+    )
     expected_probability = p + q - 2 * p * q
     expected = kraus_to_choi(bit_flip_channel(expected_probability))
     np.testing.assert_allclose(composed, expected, atol=1e-12)
@@ -151,11 +155,10 @@ def test_choi_rank_equals_minimal_kraus_count_for_standard_examples() -> None:
 
 
 def test_unitality_identifies_unital_and_nonunital_channels() -> None:
-    assert is_unital(kraus_to_choi(depolarizing_channel(0.4)), d_out=2)
-    assert not is_unital(kraus_to_choi(amplitude_damping_channel(0.4)), d_out=2)
+    assert is_unital(kraus_to_choi(depolarizing_channel(0.4)), d_in=2, d_out=2)
+    assert not is_unital(kraus_to_choi(amplitude_damping_channel(0.4)), d_in=2, d_out=2)
 
 
 def test_invalid_kraus_shapes_raise() -> None:
     with pytest.raises(ValueError, match="same shape"):
         kraus_to_choi([np.eye(2), np.eye(3)])
-

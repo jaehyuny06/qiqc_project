@@ -4,20 +4,22 @@ from __future__ import annotations
 
 import numpy as np
 
-from qpt_tools import (
-    apply_channel_to_state,
-    apply_choi_channel,
+from choi_common.channels import (
     amplitude_damping_after_unitary,
-    average_gate_fidelity,
-    choi_from_unitary,
     depolarizing_after_unitary,
+    unitary_channel_choi,
+)
+from choi_common.metrics import (
+    average_gate_fidelity,
     diamond_norm_distance,
-    is_cp,
-    is_tp,
-    linear_inversion_choi,
-    mle_choi,
     process_fidelity,
     raw_process_fidelity,
+)
+from choi_common.representations import apply_choi_channel
+from choi_common.validation import is_cp, is_tp
+from qpt_tools import (
+    linear_inversion_choi,
+    mle_choi,
     simulate_output_states_from_choi,
 )
 
@@ -26,7 +28,7 @@ def test_unitary_choi_is_cptp_and_has_unit_fidelity() -> None:
     """The identity channel should be CP, TP, and fidelity-one with itself."""
 
     ident = np.eye(2, dtype=complex)
-    choi = choi_from_unitary(ident)
+    choi = unitary_channel_choi(ident)
 
     assert is_cp(choi)
     assert is_tp(choi, d_in=2, d_out=2)
@@ -53,7 +55,7 @@ def test_mle_projection_repairs_nonphysical_linear_inversion() -> None:
     """MLE projection should return a CP/TP matrix from a perturbed estimate."""
 
     x_gate = np.array([[0, 1], [1, 0]], dtype=complex)
-    ideal = choi_from_unitary(x_gate)
+    ideal = unitary_channel_choi(x_gate)
     nonphysical = ideal.copy()
     nonphysical[0, 0] -= 0.35
     nonphysical[3, 3] += 0.15
@@ -71,7 +73,7 @@ def test_apply_choi_channel_wrapper_matches_legacy_helper() -> None:
     choi = amplitude_damping_after_unitary(np.eye(2, dtype=complex), gamma=0.2)
     rho = np.array([[0.7, 0.1 - 0.2j], [0.1 + 0.2j, 0.3]], dtype=complex)
 
-    expected = apply_channel_to_state(rho, choi)
+    expected = apply_choi_channel(choi, rho, d_in=2, d_out=2)
     actual = apply_choi_channel(choi, rho)
 
     assert np.allclose(actual, expected)
@@ -80,7 +82,7 @@ def test_apply_choi_channel_wrapper_matches_legacy_helper() -> None:
 def test_diamond_norm_distance_matches_depolarizing_closed_form() -> None:
     """The local SDP should compute the true half-diamond distance."""
 
-    ident = choi_from_unitary(np.eye(2, dtype=complex))
+    ident = unitary_channel_choi(np.eye(2, dtype=complex))
     depol = depolarizing_after_unitary(np.eye(2, dtype=complex), p=1.0)
 
     assert np.isclose(diamond_norm_distance(depol, ident, d_in=2, d_out=2), 1.0, atol=2e-3)

@@ -1,12 +1,4 @@
-"""Utilities for simple quantum-comb and non-Markovianity calculations.
-
-The Choi convention used throughout this module is
-
-    C_E = sum_ij |i><j|_A tensor E(|i><j|)_B,
-
-with the input space first.  For an N-use comb we store subsystem order
-``A0, B0, A1, B1, ...`` so that one time slot is contiguous.
-"""
+"""Utilities for simple quantum-comb and non-Markovianity calculations."""
 
 from __future__ import annotations
 
@@ -14,176 +6,14 @@ from collections.abc import Callable, Sequence
 from itertools import product
 
 import numpy as np
-from scipy.linalg import svdvals
+
+from choi_common.metrics import trace_distance
+from choi_common.representations import apply_choi_channel, choi_to_natural, kraus_to_choi, natural_to_choi
+from choi_common.utils import dagger, hermitian_part
+from choi_common.validation import partial_trace
 
 
 Array = np.ndarray
-
-
-def dagger(matrix: Array) -> Array:
-    """Return the conjugate transpose of a matrix."""
-
-    return np.asarray(matrix).conj().T
-
-
-def partial_trace(operator: Array, dims: Sequence[int], trace_out: Sequence[int]) -> Array:
-    """Trace selected tensor factors out of an operator.
-
-    Parameters
-    ----------
-    operator
-        Square matrix acting on ``tensor_i C^{dims[i]}``.
-    dims
-        Tensor-factor dimensions.
-    trace_out
-        Indices of tensor factors to trace out.
-
-    Returns
-    -------
-    np.ndarray
-        Reduced operator on the untraced tensor factors, in the original order.
-    """
-
-    dims_list = list(dims)
-    total_dim = int(np.prod(dims_list))
-    matrix = np.asarray(operator, dtype=complex)
-    if matrix.shape != (total_dim, total_dim):
-        raise ValueError("operator shape is incompatible with dims")
-
-    tensor = matrix.reshape(dims_list + dims_list)
-    for axis in sorted(set(trace_out), reverse=True):
-        if axis < 0 or axis >= len(dims_list):
-            raise ValueError(f"trace axis {axis} is outside dims")
-        tensor = np.trace(tensor, axis1=axis, axis2=axis + len(dims_list))
-        dims_list.pop(axis)
-
-    remaining_dim = int(np.prod(dims_list, dtype=int)) if dims_list else 1
-    return tensor.reshape(remaining_dim, remaining_dim)
-
-
-def kraus_to_choi(kraus_ops: Sequence[Array]) -> Array:
-    """Convert Kraus operators to a Choi matrix.
-
-    Parameters
-    ----------
-    kraus_ops
-        Kraus operators with shape ``(d_out, d_in)``.
-
-    Returns
-    -------
-    np.ndarray
-        Choi matrix with shape ``(d_in * d_out, d_in * d_out)``.
-    """
-
-    if not kraus_ops:
-        raise ValueError("at least one Kraus operator is required")
-
-    d_out, d_in = np.asarray(kraus_ops[0]).shape
-    choi = np.zeros((d_in * d_out, d_in * d_out), dtype=complex)
-    for i in range(d_in):
-        for j in range(d_in):
-            basis_op = np.zeros((d_in, d_in), dtype=complex)
-            basis_op[i, j] = 1.0
-            block = sum(k @ basis_op @ dagger(k) for k in kraus_ops)
-            choi[i * d_out : (i + 1) * d_out, j * d_out : (j + 1) * d_out] = block
-    return choi
-
-
-def apply_choi_channel(choi: Array, rho: Array, d_in: int | None = None, d_out: int | None = None) -> Array:
-    """Apply a channel represented by its Choi matrix to a density operator.
-
-    Parameters
-    ----------
-    choi
-        Choi matrix in the convention ``input tensor output``.
-    rho
-        Input operator.
-    d_in, d_out
-        Optional input and output dimensions.  If omitted, ``d_in`` is read
-        from ``rho`` and ``d_out`` is inferred from the Choi size.
-
-    Returns
-    -------
-    np.ndarray
-        Output operator ``E(rho)``.
-    """
-
-    rho_arr = np.asarray(rho, dtype=complex)
-    if d_in is None:
-        d_in = rho_arr.shape[0]
-    if rho_arr.shape != (d_in, d_in):
-        raise ValueError("rho shape is incompatible with d_in")
-
-    choi_arr = np.asarray(choi, dtype=complex)
-    if d_out is None:
-        if choi_arr.shape[0] % d_in != 0:
-            raise ValueError("cannot infer d_out from choi and d_in")
-        d_out = choi_arr.shape[0] // d_in
-    if choi_arr.shape != (d_in * d_out, d_in * d_out):
-        raise ValueError("choi shape is incompatible with dimensions")
-
-    out = np.zeros((d_out, d_out), dtype=complex)
-    for i in range(d_in):
-        for j in range(d_in):
-            block = choi_arr[i * d_out : (i + 1) * d_out, j * d_out : (j + 1) * d_out]
-            out += rho_arr[i, j] * block
-    return out
-
-
-def apply_choi_channel_legacy(rho: Array, choi: Array, d_in: int | None = None, d_out: int | None = None) -> Array:
-    """Deprecated wrapper for the old ``(rho, choi)`` argument order."""
-
-    return apply_choi_channel(choi, rho, d_in=d_in, d_out=d_out)
-
-
-def choi_to_natural(choi: Array, d_in: int | None = None, d_out: int | None = None) -> Array:
-    """Convert a Choi matrix to the natural superoperator representation.
-
-    The natural representation satisfies ``vec(E(X)) = S vec(X)`` using
-    column-major vectorization.
-    """
-
-    choi_arr = np.asarray(choi, dtype=complex)
-    if d_in is None and d_out is None:
-        root = int(round(np.sqrt(choi_arr.shape[0])))
-        d_in = root
-        d_out = root
-    elif d_in is None or d_out is None:
-        raise ValueError("provide both d_in and d_out, or neither for square channels")
-
-    assert d_in is not None and d_out is not None
-    natural = np.zeros((d_out * d_out, d_in * d_in), dtype=complex)
-    for i in range(d_in):
-        for j in range(d_in):
-            block = choi_arr[i * d_out : (i + 1) * d_out, j * d_out : (j + 1) * d_out]
-            natural[:, i + j * d_in] = block.reshape(-1, order="F")
-    return natural
-
-
-def natural_to_choi(natural: Array, d_in: int | None = None, d_out: int | None = None) -> Array:
-    """Convert a natural superoperator to a Choi matrix."""
-
-    natural_arr = np.asarray(natural, dtype=complex)
-    if d_in is None and d_out is None:
-        d_out = int(round(np.sqrt(natural_arr.shape[0])))
-        d_in = int(round(np.sqrt(natural_arr.shape[1])))
-    elif d_in is None or d_out is None:
-        raise ValueError("provide both d_in and d_out, or neither")
-
-    assert d_in is not None and d_out is not None
-    choi = np.zeros((d_in * d_out, d_in * d_out), dtype=complex)
-    for i in range(d_in):
-        for j in range(d_in):
-            block = natural_arr[:, i + j * d_in].reshape((d_out, d_out), order="F")
-            choi[i * d_out : (i + 1) * d_out, j * d_out : (j + 1) * d_out] = block
-    return choi
-
-
-def trace_distance(rho: Array, sigma: Array) -> float:
-    """Return the quantum trace distance ``0.5 * ||rho - sigma||_1``."""
-
-    diff = np.asarray(rho, dtype=complex) - np.asarray(sigma, dtype=complex)
-    return float(0.5 * np.sum(svdvals(diff)))
 
 
 def _ravel_index(indices: Sequence[int], dims: Sequence[int]) -> int:
@@ -195,27 +25,7 @@ def _unravel_index(index: int, dims: Sequence[int]) -> tuple[int, ...]:
 
 
 def embed_operator(operator: Array, dims: Sequence[int], targets: Sequence[int]) -> Array:
-    """Embed a local operator into a tensor-product Hilbert space.
-
-    This dense helper explicitly loops over computational-basis indices and is
-    intended for small qubit demonstrations, not large process tensors.
-
-    Parameters
-    ----------
-    operator
-        Operator on the tensor product of ``dims[target]`` for each target,
-        ordered as given by ``targets``.
-    dims
-        Dimensions of the full tensor-product space.
-    targets
-        Subsystems on which ``operator`` acts.
-
-    Returns
-    -------
-    np.ndarray
-        Full-space operator.
-    """
-
+    """Embed a local operator into a tensor-product Hilbert space."""
     dims_list = list(dims)
     targets_list = list(targets)
     target_dims = [dims_list[t] for t in targets_list]
@@ -248,7 +58,6 @@ def embed_operator(operator: Array, dims: Sequence[int], targets: Sequence[int])
 
 def _apply_memory_channel(operator: Array, system_env_unitaries: Sequence[Array], env_init: Array) -> Array:
     """Apply a sequential memory channel to all input time slots."""
-
     n_steps = len(system_env_unitaries)
     d_system_n = operator.shape[0]
     d_system = int(round(d_system_n ** (1 / n_steps)))
@@ -264,7 +73,6 @@ def _apply_memory_channel(operator: Array, system_env_unitaries: Sequence[Array]
 
 def _grouped_choi_to_comb_order(choi: Array, n_steps: int, d_system: int) -> Array:
     """Permute ``A_all, B_all`` Choi order into ``A0, B0, A1, B1, ...``."""
-
     dims_grouped = [d_system] * n_steps + [d_system] * n_steps
     tensor = np.asarray(choi, dtype=complex).reshape(dims_grouped + dims_grouped)
     row_perm: list[int] = []
@@ -278,7 +86,6 @@ def _grouped_choi_to_comb_order(choi: Array, n_steps: int, d_system: int) -> Arr
 
 def _comb_order_to_grouped_choi(comb: Array, n_steps: int, d_system: int) -> Array:
     """Permute ``A0, B0, A1, B1, ...`` comb order into ``A_all, B_all``."""
-
     dims_comb = [d_system, d_system] * n_steps
     tensor = np.asarray(comb, dtype=complex).reshape(dims_comb + dims_comb)
     row_perm = list(range(0, 2 * n_steps, 2)) + list(range(1, 2 * n_steps, 2))
@@ -292,29 +99,7 @@ def construct_process_tensor(
     env_init: Array,
     n_steps: int,
 ) -> Array:
-    """Construct a finite-memory N-use process tensor as a comb Choi matrix.
-
-    The model is a collision process: each system time slot interacts once
-    with the same environment, which is then passed to the next slot.  The
-    resulting object is the Choi matrix of the induced multi-time channel,
-    stored in comb order ``A0, B0, A1, B1, ...``.  This is a compact and
-    explicit way to expose temporal correlations from a shared environment.
-
-    Parameters
-    ----------
-    system_env_unitaries
-        List of unitaries acting on ``system tensor environment``.
-    env_init
-        Initial environment density matrix.
-    n_steps
-        Number of time slots/uses.
-
-    Returns
-    -------
-    np.ndarray
-        Positive semidefinite comb Choi operator.
-    """
-
+    """Construct a finite-memory N-use process tensor as a comb Choi matrix."""
     if n_steps != len(system_env_unitaries):
         raise ValueError("n_steps must match the number of unitaries")
     if n_steps < 1:
@@ -345,7 +130,7 @@ def construct_process_tensor(
             choi_grouped[row : row + d_total_in, col : col + d_total_in] = block
 
     comb = _grouped_choi_to_comb_order(choi_grouped, n_steps, d_system)
-    return 0.5 * (comb + dagger(comb))
+    return hermitian_part(comb)
 
 
 def _infer_qubit_steps_from_comb(process_tensor: Array) -> int:
@@ -357,21 +142,7 @@ def _infer_qubit_steps_from_comb(process_tensor: Array) -> int:
 
 
 def marginal_channel(process_tensor: Array, step: int) -> Array:
-    """Return the single-slot marginal Choi matrix of a qubit comb.
-
-    Parameters
-    ----------
-    process_tensor
-        Comb matrix in order ``A0, B0, A1, B1, ...``.
-    step
-        Time-slot index to keep.
-
-    Returns
-    -------
-    np.ndarray
-        Choi matrix for the requested marginal channel.
-    """
-
+    """Return the single-slot marginal Choi matrix of a qubit comb."""
     n_steps = _infer_qubit_steps_from_comb(process_tensor)
     if step < 0 or step >= n_steps:
         raise ValueError("step is outside the comb")
@@ -386,7 +157,6 @@ def marginal_channel(process_tensor: Array, step: int) -> Array:
 
 def is_markovian(process_tensor: Array, n_steps: int, tol: float = 1e-8) -> bool:
     """Test whether a qubit comb factorizes into its single-step marginals."""
-
     if n_steps != _infer_qubit_steps_from_comb(process_tensor):
         raise ValueError("n_steps is incompatible with process_tensor size")
 
@@ -400,14 +170,7 @@ def is_markovian(process_tensor: Array, n_steps: int, tol: float = 1e-8) -> bool
 
 
 def comb_global_trace_preservation_check(comb: Array, dims: list[int], tol: float = 1e-8) -> bool:
-    """Check the necessary global trace-preservation condition for a comb.
-
-    This verifies the channel-level causality condition
-    ``Tr_{B0...BN}(T) = I_{A0...AN}`` for a comb stored as
-    ``A0, B0, A1, B1, ...``.  It is necessary, but by itself it is weaker than
-    the recursive deterministic-comb causality hierarchy.
-    """
-
+    """Check the necessary global trace-preservation condition for a comb."""
     if len(dims) % 2 != 0:
         raise ValueError("dims must be [A0, B0, A1, B1, ...]")
     trace_outputs = list(range(1, len(dims), 2))
@@ -417,17 +180,7 @@ def comb_global_trace_preservation_check(comb: Array, dims: list[int], tol: floa
 
 
 def deterministic_comb_causality_check(comb: Array, dims: list[int], tol: float = 1e-8) -> bool:
-    """Check the recursive causality hierarchy for a deterministic quantum comb.
-
-    The unnormalized Choi convention is used.  For a two-slot comb in subsystem
-    order ``A0, B0, A1, B1``, the hierarchy is
-
-    ``Tr_B1(T) = T_0 tensor I_A1`` and ``Tr_B0(T_0) = I_A0``.
-
-    The same recursion is applied from the final slot backward for larger
-    small-demo combs.
-    """
-
+    """Check the recursive causality hierarchy for a deterministic quantum comb."""
     dims_list = list(dims)
     if len(dims_list) % 2 != 0:
         raise ValueError("dims must be [A0, B0, A1, B1, ...]")
@@ -467,7 +220,6 @@ def deterministic_comb_causality_check(comb: Array, dims: list[int], tol: float 
 
 def comb_partial_trace_check(comb: Array, dims: list[int]) -> bool:
     """Deprecated alias for :func:`deterministic_comb_causality_check`."""
-
     return deterministic_comb_causality_check(comb, dims)
 
 
@@ -500,13 +252,7 @@ def _antipodal_qubit_pairs() -> list[tuple[Array, Array]]:
 
 
 def blp_measure(channel_family: Callable[[float], Array], t_grid: Array) -> float:
-    """Estimate the BLP non-Markovianity measure on a time grid.
-
-    The Breuer-Laine-Piilo measure integrates positive increases in trace
-    distance, maximized over state pairs.  For qubit examples this function
-    searches deterministic antipodal pure-state pairs on the Bloch sphere.
-    """
-
+    """Estimate the BLP non-Markovianity measure on a time grid."""
     times = np.asarray(t_grid, dtype=float)
     if times.ndim != 1 or times.size < 2:
         raise ValueError("t_grid must be a one-dimensional grid with at least two points")
@@ -523,14 +269,7 @@ def blp_measure(channel_family: Callable[[float], Array], t_grid: Array) -> floa
 
 
 def rhp_measure(channel_family: Callable[[float], Array], t_grid: Array) -> float:
-    """Estimate an RHP-style CP-divisibility violation on a time grid.
-
-    For each adjacent pair of times, the intermediate map is reconstructed as
-    ``E(t_{k+1}) E(t_k)^+`` in natural representation.  Negative eigenvalues
-    of the intermediate Choi matrix are summed as a discrete divisibility
-    witness.  A CP-divisible family gives zero up to numerical tolerance.
-    """
-
+    """Estimate an RHP-style CP-divisibility violation on a time grid."""
     times = np.asarray(t_grid, dtype=float)
     if times.ndim != 1 or times.size < 2:
         raise ValueError("t_grid must be a one-dimensional grid with at least two points")
@@ -544,7 +283,6 @@ def rhp_measure(channel_family: Callable[[float], Array], t_grid: Array) -> floa
         natural_1 = choi_to_natural(choi_1, d, d)
         intermediate = natural_1 @ np.linalg.pinv(natural_0, rcond=1e-10)
         choi_intermediate = natural_to_choi(intermediate, d, d)
-        hermitian = 0.5 * (choi_intermediate + dagger(choi_intermediate))
-        eigenvalues = np.linalg.eigvalsh(hermitian)
+        eigenvalues = np.linalg.eigvalsh(hermitian_part(choi_intermediate))
         total += float(np.sum(np.abs(eigenvalues[eigenvalues < -1e-8])) / d)
     return total

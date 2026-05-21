@@ -11,3 +11,4 @@ qiskit==2.3.0
 qiskit-aer==0.17.2
 qiskit-experiments==0.13.0
 qiskit-ibm-runtime==0.45.1
+-e ..

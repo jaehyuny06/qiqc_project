@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "choi-common"
+version = "0.1.0"
+description = "Shared Choi-representation utilities for the Choi multi-agent project"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "matplotlib",
+    "cvxpy",
+]
+
+[tool.setuptools]
+packages = ["choi_common"]

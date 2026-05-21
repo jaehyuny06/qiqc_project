@@ -31,7 +31,7 @@ where the input system is the first tensor factor and the output system is the s
 - Trace preservation is equivalent to `Tr_out(C) = I_in`.
 - The numerical Choi rank equals the minimum number of Kraus operators.
 - Kraus, Choi, Stinespring, and natural forms can be converted consistently.
-- Channel composition is simple matrix multiplication in natural form and is exposed through `compose_channels_choi`.
+- Channel composition is simple matrix multiplication in natural form and is exposed through `choi_common.representations.compose_choi_channels`.
 
 ## Run Instructions
 
