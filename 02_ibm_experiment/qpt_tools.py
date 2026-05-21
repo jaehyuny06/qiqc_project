@@ -3,10 +3,10 @@
 The module is intentionally self-contained for Agent-2.  It uses the Choi
 convention from the project spec,
 
-    C_E = sum_ij |i><j| tensor E(|i><j|),
+    C_E = sum_ij |i><j|_A tensor E(|i><j|)_B,
 
-so the input system is the first tensor factor and TP means
-Tr_output(C_E) = I_input.
+so the input system ``A`` is the first tensor factor and TP means
+Tr_B(C_E) = I_A.
 """
 
 from __future__ import annotations
@@ -166,6 +166,43 @@ def apply_channel_to_state(rho: np.ndarray, choi: np.ndarray, d_out: int | None 
     c = np.asarray(choi, dtype=complex).reshape(d_in, d_out, d_in, d_out)
     out = np.einsum("ij,iajb->ab", state, c)
     return hermitize(out)
+
+
+def apply_choi_channel(
+    choi: np.ndarray,
+    rho: np.ndarray,
+    d_in: int | None = None,
+    d_out: int | None = None,
+) -> np.ndarray:
+    """Apply a Choi-represented channel using the project-standard API.
+
+    Parameters
+    ----------
+    choi:
+        Choi matrix ``C_E`` in input-first order ``A tensor B``.
+    rho:
+        Input operator on the input system.
+    d_in, d_out:
+        Optional input and output dimensions. If omitted, ``d_in`` is inferred
+        from ``rho`` and ``d_out`` from the Choi matrix.
+
+    Returns
+    -------
+    np.ndarray
+        Output matrix ``E(rho)``.
+    """
+
+    state = np.asarray(rho, dtype=complex)
+    if d_in is None:
+        d_in = state.shape[0]
+    if state.shape != (d_in, d_in):
+        raise ValueError(f"rho must have shape {(d_in, d_in)}")
+    if d_out is None:
+        d_out = int(round(np.asarray(choi).shape[0] / d_in))
+    expected = (d_in * d_out, d_in * d_out)
+    if np.asarray(choi).shape != expected:
+        raise ValueError(f"choi must have shape {expected}")
+    return apply_channel_to_state(state, choi, d_out=d_out)
 
 
 def compose_choi(choi_after: np.ndarray, choi_before: np.ndarray, d_mid: int | None = None) -> np.ndarray:
@@ -349,7 +386,7 @@ def mle_choi(measurement_data: dict[str, Any], d_in: int, d_out: int) -> np.ndar
 
     This is the maximum-likelihood estimator for a Gaussian least-squares
     tomography model: minimize the Frobenius distance to the linear inversion
-    subject to ``C >= 0`` and ``Tr_output(C) = I``.  CVXPY/SCS is used when
+    subject to ``C >= 0`` and ``Tr_B(C) = I_A``.  CVXPY is used when
     available; otherwise a deterministic alternating projection fallback is
     used for offline reproducibility.
 
@@ -391,7 +428,10 @@ def mle_choi(measurement_data: dict[str, Any], d_in: int, d_out: int) -> np.ndar
         if solver not in cp.installed_solvers():
             continue
         try:
-            problem.solve(solver=solver, eps=1e-7, max_iters=20000, verbose=False)
+            kwargs: dict[str, Any] = {"verbose": False}
+            if solver == "SCS":
+                kwargs.update({"eps": 1e-7, "max_iters": 20000})
+            problem.solve(solver=solver, **kwargs)
         except Exception:
             continue
         if c_var.value is not None and problem.status in {
@@ -454,16 +494,20 @@ def project_to_cptp(
     return hermitize(current + correction)
 
 
-def process_fidelity(choi_actual: np.ndarray, choi_ideal: np.ndarray) -> float:
-    """Compute process fidelity ``Tr(C_ideal C_actual) / d^2``."""
-
+def raw_process_fidelity(choi_actual: np.ndarray, choi_ideal: np.ndarray) -> float:
+    """Compute unclipped ``Tr(C_ideal C_actual) / d^2``."""
     actual = np.asarray(choi_actual, dtype=complex)
     ideal = np.asarray(choi_ideal, dtype=complex)
     if actual.shape != ideal.shape:
         raise ValueError("choi_actual and choi_ideal must have the same shape")
     d = int(round(np.sqrt(actual.shape[0])))
-    value = np.trace(ideal @ actual).real / (d**2)
-    return float(np.clip(value, 0.0, 1.0))
+    return float(np.trace(ideal @ actual).real / (d**2))
+
+
+def process_fidelity(choi_actual: np.ndarray, choi_ideal: np.ndarray) -> float:
+    """Compute clipped process fidelity ``Tr(C_ideal C_actual) / d^2``."""
+
+    return float(np.clip(raw_process_fidelity(choi_actual, choi_ideal), 0.0, 1.0))
 
 
 def average_gate_fidelity(choi_actual: np.ndarray, choi_ideal: np.ndarray, d: int) -> float:
@@ -525,6 +569,83 @@ def choi_to_pauli_transfer(choi: np.ndarray) -> np.ndarray:
     return r
 
 
+def diamond_norm_sdp(
+    choi_diff: np.ndarray,
+    d_in: int,
+    d_out: int,
+    solver: str | None = None,
+    eps: float = 1e-6,
+    max_iters: int = 50_000,
+) -> float:
+    """Compute the diamond norm of a channel difference by SDP.
+
+    The SDP is the Watrous primal form for a Hermiticity-preserving map
+    ``Phi`` with Choi matrix ``C_Phi`` in the project convention:
+    maximize ``<C_Phi, W>`` subject to ``-rho tensor I <= W <= rho tensor I``,
+    ``rho >= 0``, and ``Tr(rho) = 1``.
+    """
+
+    try:
+        import cvxpy as cp
+    except ImportError as exc:
+        raise RuntimeError("cvxpy is required for diamond_norm_sdp") from exc
+
+    c_phi = hermitize(choi_diff)
+    dim = d_in * d_out
+    if c_phi.shape != (dim, dim):
+        raise ValueError(f"expected Choi shape {(dim, dim)}, got {c_phi.shape}")
+
+    installed = set(cp.installed_solvers())
+    if solver is None:
+        for candidate in ("MOSEK", "CLARABEL", "SCS"):
+            if candidate in installed:
+                solver = candidate
+                break
+    elif solver not in installed:
+        raise ValueError(f"requested solver {solver!r} is not installed")
+    if solver is None:
+        raise RuntimeError("no suitable CVXPY conic solver is installed")
+
+    rho = cp.Variable((d_in, d_in), hermitian=True)
+    witness = cp.Variable((dim, dim), hermitian=True)
+    rho_tensor_identity = cp.kron(rho, np.eye(d_out, dtype=complex))
+    constraints = [
+        rho >> 0,
+        cp.trace(rho) == 1,
+        rho_tensor_identity - witness >> 0,
+        rho_tensor_identity + witness >> 0,
+    ]
+    problem = cp.Problem(cp.Maximize(cp.real(cp.trace(c_phi @ witness))), constraints)
+
+    kwargs: dict[str, Any] = {}
+    if solver == "SCS":
+        kwargs.update({"eps": eps, "max_iters": max_iters, "verbose": False})
+    problem.solve(solver=solver, **kwargs)
+    if problem.status not in {cp.OPTIMAL, cp.OPTIMAL_INACCURATE}:
+        raise RuntimeError(f"diamond-norm SDP failed with status {problem.status!r}")
+    return float(max(np.real(problem.value), 0.0))
+
+
+def diamond_norm_distance(
+    choi_actual: np.ndarray,
+    choi_ideal: np.ndarray,
+    d_in: int | None = None,
+    d_out: int | None = None,
+) -> float:
+    """Return ``0.5 * ||E_actual - E_ideal||_diamond`` from Choi matrices."""
+
+    actual = np.asarray(choi_actual, dtype=complex)
+    ideal = np.asarray(choi_ideal, dtype=complex)
+    if actual.shape != ideal.shape:
+        raise ValueError("choi_actual and choi_ideal must have the same shape")
+    if d_in is None or d_out is None:
+        if d_in is not None or d_out is not None:
+            raise ValueError("provide both d_in and d_out, or neither")
+        d_in = int(round(np.sqrt(actual.shape[0])))
+        d_out = actual.shape[0] // d_in
+    return 0.5 * diamond_norm_sdp(actual - ideal, d_in=d_in, d_out=d_out)
+
+
 def diagnose_noise(choi: np.ndarray, choi_ideal: np.ndarray) -> dict[str, Any]:
     """Summarize dominant noise mechanisms from a reconstructed Choi matrix.
 
@@ -538,7 +659,8 @@ def diagnose_noise(choi: np.ndarray, choi_ideal: np.ndarray) -> dict[str, Any]:
     Returns
     -------
     dict
-        Fidelity, CP/TP diagnostics, Kraus weights, and a heuristic label.
+        Fidelity, CP/TP diagnostics, Kraus weights, true half-diamond distance,
+        a separately labeled Choi-norm proxy, and a heuristic label.
     """
 
     c = hermitize(choi)
@@ -548,6 +670,7 @@ def diagnose_noise(choi: np.ndarray, choi_ideal: np.ndarray) -> dict[str, Any]:
     kraus_weights = sorted(
         [float(max(val, 0.0) / d) for val in eigvals], reverse=True
     )
+    f_pro_raw = raw_process_fidelity(c, choi_ideal)
     f_pro = process_fidelity(c, choi_ideal)
     avg_f = average_gate_fidelity(c, choi_ideal, d)
     tp_residual = float(np.linalg.norm(partial_trace_output(c, d, d_out) - np.eye(d)))
@@ -584,14 +707,17 @@ def diagnose_noise(choi: np.ndarray, choi_ideal: np.ndarray) -> dict[str, Any]:
         label = "near-ideal"
 
     diamond_proxy = 0.5 * float(np.linalg.norm(c - choi_ideal, ord="nuc") / d)
+    diamond_distance = diamond_norm_distance(c, choi_ideal, d_in=d, d_out=d_out)
     return {
         "process_fidelity": f_pro,
+        "process_fidelity_raw": f_pro_raw,
         "average_gate_fidelity": avg_f,
         "is_cp": is_cp(c),
         "is_tp": is_tp(c, d, d_out),
         "min_choi_eigenvalue": float(np.min(eigvals)),
         "tp_residual_fro": tp_residual,
         "kraus_weights": kraus_weights,
+        "diamond_distance": diamond_distance,
         "diamond_distance_proxy": diamond_proxy,
         "dominant_noise": label,
         "details": details,

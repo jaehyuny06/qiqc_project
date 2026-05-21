@@ -12,26 +12,27 @@ with comb subsystem order `A0, B0, A1, B1, ...`.
 
 ## Contents
 
-- `combs_tools.py`: Choi utilities, finite-memory comb construction, marginal
-  channels, a product-factorization Markovianity check, and BLP/RHP-style
-  non-Markovianity measures.
+- `combs_tools.py`: Choi utilities, finite-memory quantum-comb construction,
+  marginal channels, deterministic-comb causality checks, a product-factorization
+  Markovianity check, and BLP/RHP-style non-Markovianity witnesses.
 - `non_markovian_dynamics.py`: qubit toy models used in the notebook:
   exponential dephasing, oscillatory dephasing with revivals, and a collision
   model with a reused environment.
 - `test_combs_tools.py`: unit tests for partial traces, Choi TP checks, comb
   construction, Markovian factorization, and non-Markovianity witnesses.
 - `main.ipynb`: narrative demonstration with plots for BLP/RHP behavior and
-  process-tensor/comb intuition.
+  quantum-comb/process-tensor intuition.
 
 ## Key Results
 
 1. A single-time channel family can be valid at every time while failing
    CP-divisibility between intermediate times.
-2. The BLP witness detects non-Markovianity through trace-distance revivals.
-3. The RHP-style witness detects the same memory effect as negativity in the
-   intermediate-map Choi matrix.
+2. The finite-grid BLP estimate detects non-Markovianity through trace-distance
+   revivals over sampled antipodal pure-state pairs.
+3. The RHP-style grid witness detects the same memory effect as negativity in
+   the pseudo-inverse reconstructed intermediate-map Choi matrix.
 4. A two-use collision model with a reused environment produces a positive
-   comb Choi matrix that does not factorize into the product of its one-step
+   quantum comb `T` that does not factorize into the product of its one-step
    marginals.
 
 ## Run Instructions
@@ -50,10 +51,11 @@ top, following the shared project conventions.
 ## Limitations
 
 The comb constructor is intentionally scoped to small educational examples. It
-builds the Choi matrix of a finite-memory, multi-use channel by explicitly
+builds the Choi operator of a finite-memory, multi-time channel by explicitly
 looping over computational-basis operators, so the matrix dimension grows as
 `4**N` for qubit `N`-step combs.  This is suitable for two-step and small
-three-step demonstrations, not large-scale process-tensor tomography.
+three-step demonstrations, not large-scale process-tensor tomography. The
+operator embedding and comb construction are dense implementations throughout.
 
 The RHP function is a grid-based divisibility witness rather than a continuous
 optimization.  It uses a pseudoinverse for intermediate maps, which is robust

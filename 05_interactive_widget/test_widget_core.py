@@ -14,6 +14,7 @@ from channel_utils import (
     partial_trace_output,
 )
 from widget_core import (
+    apply_choi_channel,
     apply_choi_to_state,
     compute_indicators,
     get_channel_choi,
@@ -48,6 +49,16 @@ def test_amplitude_damping_action_on_excited_state() -> None:
     assert np.allclose(output, expected)
 
 
+def test_apply_choi_channel_wrapper_matches_legacy_helper() -> None:
+    """The integration-facing helper should preserve qubit widget behavior."""
+    choi = get_channel_choi("Depolarizing", {"p": 0.2})
+    rho = np.array([[0.7, 0.1], [0.1, 0.3]], dtype=complex)
+    assert np.allclose(
+        apply_choi_channel(choi, rho, d_in=2, d_out=2),
+        apply_choi_to_state(choi, rho),
+    )
+
+
 def test_unital_map_can_show_non_cp_status() -> None:
     """The unital sliders intentionally expose non-CP regions."""
     choi = get_channel_choi(
@@ -67,4 +78,3 @@ def test_pauli_probability_validation() -> None:
         assert "p_x + p_y + p_z" in str(exc)
     else:
         raise AssertionError("Expected invalid Pauli probabilities to raise ValueError.")
-

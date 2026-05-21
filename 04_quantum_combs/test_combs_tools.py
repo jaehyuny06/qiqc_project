@@ -5,10 +5,12 @@ from __future__ import annotations
 import numpy as np
 
 from combs_tools import (
+    apply_choi_channel,
     blp_measure,
-    comb_partial_trace_check,
+    comb_global_trace_preservation_check,
     construct_process_tensor,
     dagger,
+    deterministic_comb_causality_check,
     is_markovian,
     kraus_to_choi,
     marginal_channel,
@@ -43,13 +45,22 @@ def test_kraus_to_choi_identity_is_cp_and_tp() -> None:
     np.testing.assert_allclose(traced_output, I2, atol=1e-12)
 
 
+def test_apply_choi_channel_uses_standard_argument_order() -> None:
+    """The public API applies ``apply_choi_channel(choi, rho)``."""
+
+    rho = np.array([[0.3, 0.2], [0.2, 0.7]], dtype=complex)
+    choi = kraus_to_choi([I2])
+    np.testing.assert_allclose(apply_choi_channel(choi, rho), rho, atol=1e-12)
+
+
 def test_construct_process_tensor_identity_collisions_is_markovian() -> None:
     """Two identity collisions produce a product comb."""
 
     env_init = np.array([[1, 0], [0, 0]], dtype=complex)
     comb = construct_process_tensor([np.eye(4), np.eye(4)], env_init, n_steps=2)
     assert comb.shape == (16, 16)
-    assert comb_partial_trace_check(comb, [2, 2, 2, 2])
+    assert comb_global_trace_preservation_check(comb, [2, 2, 2, 2])
+    assert deterministic_comb_causality_check(comb, [2, 2, 2, 2])
     assert is_markovian(comb, n_steps=2)
 
     marginal = marginal_channel(comb, 0)
@@ -61,7 +72,8 @@ def test_collision_comb_has_memory_correlations() -> None:
 
     comb = collision_model_comb(theta=0.72, n_steps=2)
     product = memoryless_product_comb(theta=0.72, n_steps=2)
-    assert comb_partial_trace_check(comb, [2, 2, 2, 2])
+    assert comb_global_trace_preservation_check(comb, [2, 2, 2, 2])
+    assert deterministic_comb_causality_check(comb, [2, 2, 2, 2])
     assert not is_markovian(comb, n_steps=2, tol=1e-3)
     assert np.linalg.norm(comb - product, ord="fro") > 1e-2
 

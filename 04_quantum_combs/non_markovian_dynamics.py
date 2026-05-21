@@ -98,7 +98,7 @@ def controlled_phase_memory_unitary(theta: float) -> Array:
 
 
 def collision_model_comb(theta: float = 0.7, n_steps: int = 2, env_state: Array | None = None) -> Array:
-    """Build a qubit memory comb from repeated partial-swap collisions."""
+    """Build a qubit quantum comb from repeated partial-swap collisions."""
 
     if env_state is None:
         env_state = density(ket0())

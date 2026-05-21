@@ -9,6 +9,9 @@ C_E = sum_ij |i><j| tensor E(|i><j|)
 ```
 
 with the input system as the first tensor factor.
+In report notation this is the unnormalized matrix `C_\mathcal{E}`;
+for channel differences we write `\Phi = \mathcal{E}_0-\mathcal{E}_1`
+and use `C_\Phi`.
 
 ## Contents
 
@@ -42,8 +45,9 @@ python -m pytest -q
 jupyter nbconvert --to notebook --execute main.ipynb --output executed_main.ipynb
 ```
 
-`sdp_tools.py` automatically prefers MOSEK if it is installed.  Otherwise it
-uses an open-source CVXPY conic solver, with SCS as the reliable fallback.
+`sdp_tools.py` automatically prefers MOSEK if it is installed, then CLARABEL,
+then SCS. Small tolerance-level numerical differences are expected across
+solvers, especially for nearly degenerate optimal solutions.
 
 ## Notes on Scaling
 
@@ -51,3 +55,10 @@ The SDP variable acts on input-output space, so matrix dimensions grow as
 `d_in * d_out`.  The `n_shot_discrimination` helper constructs tensor-power
 Choi matrices, so it should only be used for small examples such as qubit
 channels with `n <= 2` or `n <= 3` depending on the available solver.
+
+## API Notes
+
+For integration with other project folders, use
+`apply_choi_channel(choi, rho, d_in=None, d_out=None)` when applying a
+Choi-represented channel. The older `apply_choi_to_state` helper remains
+available internally with explicit dimensions.

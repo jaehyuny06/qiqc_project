@@ -207,6 +207,7 @@
       },
       "diagnosis": {
         "process_fidelity": 0.9595830354572057,
+        "process_fidelity_raw": 0.9595830354572057,
         "average_gate_fidelity": 0.9730553569714705,
         "is_cp": true,
         "is_tp": true,
@@ -218,6 +219,7 @@
           1.1719130662724008e-07,
           5.998272650797887e-08
         ],
+        "diamond_distance": 0.07999988407666782,
         "diamond_distance_proxy": 0.04858057807541988,
         "dominant_noise": "amplitude-damping-like relaxation",
         "details": {
@@ -430,6 +432,7 @@
       },
       "diagnosis": {
         "process_fidelity": 0.9400000001573,
+        "process_fidelity_raw": 0.9400000001573,
         "average_gate_fidelity": 0.9600000001048666,
         "is_cp": true,
         "is_tp": true,
@@ -441,6 +444,7 @@
           0.019999999930956545,
           0.019999999929956776
         ],
+        "diamond_distance": 0.05999999973984615,
         "diamond_distance_proxy": 0.05999999981728478,
         "dominant_noise": "depolarizing-like isotropic shrinkage",
         "details": {
@@ -2203,6 +2207,7 @@
       },
       "diagnosis": {
         "process_fidelity": 0.9200000095312747,
+        "process_fidelity_raw": 0.9200000095312747,
         "average_gate_fidelity": 0.9360000076250199,
         "is_cp": true,
         "is_tp": true,
@@ -2226,6 +2231,7 @@
           0.005333330127875495,
           0.005333330127875459
         ],
+        "diamond_distance": 0.07999999070016431,
         "diamond_distance_proxy": 0.07999999072609752,
         "dominant_noise": "appreciable stochastic noise",
         "details": {}

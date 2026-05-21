@@ -125,8 +125,8 @@ def plot_choi_heatmap(choi: Array, ax_real: Axes, ax_imag: Axes) -> None:
     """
     vmax = max(1e-12, float(np.max(np.abs([choi.real, choi.imag]))))
     for ax, values, title in (
-        (ax_real, choi.real, "Re(C)"),
-        (ax_imag, choi.imag, "Im(C)"),
+        (ax_real, choi.real, r"Re($C_\mathcal{E}$)"),
+        (ax_imag, choi.imag, r"Im($C_\mathcal{E}$)"),
     ):
         image = ax.imshow(values, cmap="RdBu_r", vmin=-vmax, vmax=vmax)
         ax.set_title(title)
@@ -229,7 +229,7 @@ def plot_eigenspectrum(choi: Array, ax: Axes) -> None:
 
 
 def compute_indicators(choi: Array) -> dict[str, float | bool | int]:
-    """Compute status and fidelity indicators for a qubit channel.
+    """Compute status and overlap indicators for a qubit channel.
 
     Parameters
     ----------
@@ -239,31 +239,36 @@ def compute_indicators(choi: Array) -> dict[str, float | bool | int]:
     Returns
     -------
     dict
-        CP/TP flags, rank, process fidelities, trace, TP residual, and minimum
-        Choi eigenvalue.
+        CP/TP flags, rank, trace, TP residual, minimum Choi eigenvalue, and
+        Choi overlaps with reference channels.  The overlaps are process
+        fidelities only when the displayed map is CP and TP.
     """
     hermitian = 0.5 * (choi + choi.conj().T)
     eigvals = np.linalg.eigvalsh(hermitian)
+    cp_flag = is_cp(choi)
+    tp_flag = is_tp(choi)
     identity_choi = get_channel_choi("Identity", {})
-    process_fidelity_identity = float(np.real(np.trace(choi @ identity_choi)) / 4.0)
+    identity_overlap = float(np.real(np.trace(choi @ identity_choi)) / 4.0)
 
     matrix, _ = bloch_affine_map(choi)
     mean_shrink = float(np.trace(matrix).real / 3.0)
     depol_p = float(np.clip(0.75 * (1.0 - mean_shrink), 0.0, 1.0))
     depol_choi = get_channel_choi("Depolarizing", {"p": depol_p})
-    process_fidelity_depolarized = float(np.real(np.trace(choi @ depol_choi)) / 4.0)
+    depolarized_overlap = float(np.real(np.trace(choi @ depol_choi)) / 4.0)
     tp_residual = float(np.linalg.norm(partial_trace_output(choi) - I2))
 
     return {
-        "is_cp": is_cp(choi),
-        "is_tp": is_tp(choi),
+        "is_cp": cp_flag,
+        "is_tp": tp_flag,
         "rank": int(np.sum(eigvals > 1e-9)),
         "trace": float(np.real(np.trace(choi))),
         "min_eigenvalue": float(np.min(np.real(eigvals))),
         "tp_residual": tp_residual,
-        "process_fidelity_identity": float(np.clip(process_fidelity_identity, -1.0, 1.0)),
+        "identity_choi_overlap": identity_overlap,
+        "depolarized_choi_overlap": depolarized_overlap,
+        "process_fidelity_identity": float(np.clip(identity_overlap, -1.0, 1.0)),
         "process_fidelity_depolarized": float(
-            np.clip(process_fidelity_depolarized, -1.0, 1.0)
+            np.clip(depolarized_overlap, -1.0, 1.0)
         ),
         "nearest_depolarizing_p": depol_p,
     }
@@ -387,24 +392,53 @@ def bloch_affine_map(choi: Array) -> tuple[NDArray[np.float64], NDArray[np.float
     return matrix, offset
 
 
-def apply_choi_to_state(choi: Array, rho: Array) -> Array:
+def apply_choi_channel(
+    choi: Array,
+    rho: Array,
+    d_in: int | None = None,
+    d_out: int | None = None,
+) -> Array:
     """Apply a qubit map directly from its Choi matrix.
+
+    This wrapper follows the project-wide helper name and argument order.  The
+    Agent-5 widget is intentionally qubit-only, so ``d_in`` and ``d_out`` may
+    be omitted or set to ``2``.
 
     Parameters
     ----------
     choi:
-        Choi matrix using the input-first convention.
+        Unnormalized Choi matrix ``C_E`` using the input-first convention.
     rho:
         Qubit input density matrix.
+    d_in, d_out:
+        Optional dimensions.  Only ``2`` is supported by this widget.
 
     Returns
     -------
     numpy.ndarray
         Channel output, computed linearly from Choi blocks.
     """
-    blocks = np.asarray(choi, dtype=complex).reshape(2, 2, 2, 2)
-    output = np.einsum("ij,ibjo->bo", np.asarray(rho, dtype=complex), blocks)
+    if d_in not in (None, 2) or d_out not in (None, 2):
+        raise ValueError("Agent-5 widget supports only qubit channels with d_in=d_out=2.")
+    choi = np.asarray(choi, dtype=complex)
+    rho = np.asarray(rho, dtype=complex)
+    if choi.shape != (4, 4):
+        raise ValueError("Qubit Choi matrix must have shape (4, 4).")
+    if rho.shape != (2, 2):
+        raise ValueError("Qubit input state rho must have shape (2, 2).")
+    blocks = choi.reshape(2, 2, 2, 2)
+    output = np.einsum("ij,ibjo->bo", rho, blocks)
     return 0.5 * (output + output.conj().T)
+
+
+def apply_choi_to_state(choi: Array, rho: Array) -> Array:
+    """Backward-compatible alias for :func:`apply_choi_channel`.
+
+    The widget's original helper name is retained for existing notebook and
+    test callers; new integration-facing code should use
+    :func:`apply_choi_channel`.
+    """
+    return apply_choi_channel(choi, rho, d_in=2, d_out=2)
 
 
 def render_dashboard_figure(choi: Array, title: str = "Channel") -> plt.Figure:
@@ -472,13 +506,26 @@ def format_indicator_text(indicators: Mapping[str, float | bool | int]) -> str:
     """
     cp = "yes" if indicators["is_cp"] else "no"
     tp = "yes" if indicators["is_tp"] else "no"
-    return (
+    status = (
         f"CP: {cp} | TP: {tp} | rank: {indicators['rank']} | "
-        f"trace(C): {indicators['trace']:.6f} | min eig: {indicators['min_eigenvalue']:.3e}\n"
-        f"TP residual: {indicators['tp_residual']:.3e} | "
-        f"F_process(identity): {indicators['process_fidelity_identity']:.6f} | "
-        f"F_process(depol fit p={indicators['nearest_depolarizing_p']:.3f}): "
-        f"{indicators['process_fidelity_depolarized']:.6f}"
+        f"Tr(C_E): {indicators['trace']:.6f} | min eig: {indicators['min_eigenvalue']:.3e}\n"
+        f"TP residual ||Tr_B(C_E)-I_A||: {indicators['tp_residual']:.3e}"
+    )
+    if indicators["is_cp"] and indicators["is_tp"]:
+        return (
+            status
+            + "\n"
+            + f"F_process(identity): {indicators['process_fidelity_identity']:.6f} | "
+            + f"F_process(depol fit p={indicators['nearest_depolarizing_p']:.3f}): "
+            + f"{indicators['process_fidelity_depolarized']:.6f}"
+        )
+    return (
+        status
+        + "\n"
+        + "Warning: non-CP or non-TP map; overlaps below are not process fidelities.\n"
+        + f"Choi overlap(identity): {indicators['identity_choi_overlap']:.6f} | "
+        + f"Choi overlap(depol fit p={indicators['nearest_depolarizing_p']:.3f}): "
+        + f"{indicators['depolarized_choi_overlap']:.6f}"
     )
 
 

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from itertools import product
-from typing import Iterable
+from typing import Iterable, Sequence
 
 import numpy as np
 from numpy.typing import NDArray
@@ -71,7 +71,7 @@ def _validate_choi_dims(choi: np.ndarray, d_in: int, d_out: int) -> Array:
     return arr
 
 
-def kraus_to_choi(kraus_ops: list[np.ndarray]) -> Array:
+def kraus_to_choi(kraus_ops: Sequence[np.ndarray]) -> Array:
     """Convert Kraus operators to a Choi matrix.
 
     Parameters
@@ -130,6 +130,46 @@ def apply_choi_to_state(choi: np.ndarray, rho: np.ndarray, d_in: int, d_out: int
     if state.shape != (d_in, d_in):
         raise ValueError(f"rho must have shape {(d_in, d_in)}.")
     return np.einsum("ij,iajb->ab", state, arr)
+
+
+def apply_choi_channel(
+    choi: np.ndarray,
+    rho: np.ndarray,
+    d_in: int | None = None,
+    d_out: int | None = None,
+) -> Array:
+    """Apply a Choi-represented channel using the project-standard API.
+
+    Parameters
+    ----------
+    choi
+        Choi matrix ``C_E`` in input-first order ``A tensor B``.
+    rho
+        Input operator on the input system.
+    d_in, d_out
+        Optional input and output dimensions. If both are omitted, equal
+        input/output dimensions are inferred from the Choi matrix. If one is
+        supplied, the other is inferred from the Choi matrix size.
+
+    Returns
+    -------
+    np.ndarray
+        Output matrix ``E(rho)``.
+    """
+
+    if d_in is None and d_out is None:
+        d_in, d_out = _infer_equal_dims(choi)
+    elif d_in is None:
+        dim = _as_complex_matrix(choi, "choi").shape[0]
+        if dim % d_out != 0:
+            raise ValueError("Could not infer d_in from Choi size and d_out.")
+        d_in = dim // d_out
+    elif d_out is None:
+        dim = _as_complex_matrix(choi, "choi").shape[0]
+        if dim % d_in != 0:
+            raise ValueError("Could not infer d_out from Choi size and d_in.")
+        d_out = dim // d_in
+    return apply_choi_to_state(choi, rho, d_in, d_out)
 
 
 def identity_channel_choi(d: int = 2) -> Array:
@@ -324,7 +364,7 @@ def solve_diamond_norm_sdp(
         Output dimension.
     solver
         Optional CVXPY solver name.  If omitted, MOSEK is preferred when
-        available, otherwise SCS is used as a reliable open-source fallback.
+        available, then CLARABEL, then SCS as a reliable open-source fallback.
     eps
         Accuracy parameter passed to SCS.
     max_iters

@@ -97,3 +97,17 @@ def test_optimal_input_state_and_povm_are_valid() -> None:
     assert np.allclose(m0 + m1, np.eye(4), atol=1e-7)
     assert np.min(np.linalg.eigvalsh(m0)) >= -1e-7
     assert np.min(np.linalg.eigvalsh(m1)) >= -1e-7
+
+
+def test_apply_choi_channel_wrapper_matches_legacy_helper() -> None:
+    """The project-standard Choi API should match the original helper."""
+
+    choi = sdp.amplitude_damping_channel_choi(0.25)
+    rho = np.array([[0.4, 0.1 - 0.2j], [0.1 + 0.2j, 0.6]], dtype=complex)
+
+    expected = sdp.apply_choi_to_state(choi, rho, d_in=2, d_out=2)
+    actual = sdp.apply_choi_channel(choi, rho)
+    inferred = sdp.apply_choi_channel(choi, rho, d_in=2)
+
+    assert np.allclose(actual, expected)
+    assert np.allclose(inferred, expected)

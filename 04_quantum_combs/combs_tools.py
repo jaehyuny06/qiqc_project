@@ -89,15 +89,15 @@ def kraus_to_choi(kraus_ops: Sequence[Array]) -> Array:
     return choi
 
 
-def apply_choi_channel(rho: Array, choi: Array, d_in: int | None = None, d_out: int | None = None) -> Array:
+def apply_choi_channel(choi: Array, rho: Array, d_in: int | None = None, d_out: int | None = None) -> Array:
     """Apply a channel represented by its Choi matrix to a density operator.
 
     Parameters
     ----------
-    rho
-        Input operator.
     choi
         Choi matrix in the convention ``input tensor output``.
+    rho
+        Input operator.
     d_in, d_out
         Optional input and output dimensions.  If omitted, ``d_in`` is read
         from ``rho`` and ``d_out`` is inferred from the Choi size.
@@ -128,6 +128,12 @@ def apply_choi_channel(rho: Array, choi: Array, d_in: int | None = None, d_out: 
             block = choi_arr[i * d_out : (i + 1) * d_out, j * d_out : (j + 1) * d_out]
             out += rho_arr[i, j] * block
     return out
+
+
+def apply_choi_channel_legacy(rho: Array, choi: Array, d_in: int | None = None, d_out: int | None = None) -> Array:
+    """Deprecated wrapper for the old ``(rho, choi)`` argument order."""
+
+    return apply_choi_channel(choi, rho, d_in=d_in, d_out=d_out)
 
 
 def choi_to_natural(choi: Array, d_in: int | None = None, d_out: int | None = None) -> Array:
@@ -190,6 +196,9 @@ def _unravel_index(index: int, dims: Sequence[int]) -> tuple[int, ...]:
 
 def embed_operator(operator: Array, dims: Sequence[int], targets: Sequence[int]) -> Array:
     """Embed a local operator into a tensor-product Hilbert space.
+
+    This dense helper explicitly loops over computational-basis indices and is
+    intended for small qubit demonstrations, not large process tensors.
 
     Parameters
     ----------
@@ -287,7 +296,7 @@ def construct_process_tensor(
 
     The model is a collision process: each system time slot interacts once
     with the same environment, which is then passed to the next slot.  The
-    resulting object is the Choi matrix of the induced multi-use channel,
+    resulting object is the Choi matrix of the induced multi-time channel,
     stored in comb order ``A0, B0, A1, B1, ...``.  This is a compact and
     explicit way to expose temporal correlations from a shared environment.
 
@@ -390,13 +399,13 @@ def is_markovian(process_tensor: Array, n_steps: int, tol: float = 1e-8) -> bool
     return bool(diff_norm / scale <= tol)
 
 
-def comb_partial_trace_check(comb: Array, dims: list[int]) -> bool:
-    """Check the deterministic-comb trace-preservation condition.
+def comb_global_trace_preservation_check(comb: Array, dims: list[int], tol: float = 1e-8) -> bool:
+    """Check the necessary global trace-preservation condition for a comb.
 
     This verifies the channel-level causality condition
     ``Tr_{B0...BN}(T) = I_{A0...AN}`` for a comb stored as
-    ``A0, B0, A1, B1, ...``.  It is a necessary trace condition and is exact
-    for the finite-memory combs constructed by :func:`construct_process_tensor`.
+    ``A0, B0, A1, B1, ...``.  It is necessary, but by itself it is weaker than
+    the recursive deterministic-comb causality hierarchy.
     """
 
     if len(dims) % 2 != 0:
@@ -404,7 +413,62 @@ def comb_partial_trace_check(comb: Array, dims: list[int]) -> bool:
     trace_outputs = list(range(1, len(dims), 2))
     traced = partial_trace(comb, dims, trace_outputs)
     input_dim = int(np.prod(dims[::2]))
-    return bool(np.allclose(traced, np.eye(input_dim, dtype=complex), atol=1e-8))
+    return bool(np.allclose(traced, np.eye(input_dim, dtype=complex), atol=tol))
+
+
+def deterministic_comb_causality_check(comb: Array, dims: list[int], tol: float = 1e-8) -> bool:
+    """Check the recursive causality hierarchy for a deterministic quantum comb.
+
+    The unnormalized Choi convention is used.  For a two-slot comb in subsystem
+    order ``A0, B0, A1, B1``, the hierarchy is
+
+    ``Tr_B1(T) = T_0 tensor I_A1`` and ``Tr_B0(T_0) = I_A0``.
+
+    The same recursion is applied from the final slot backward for larger
+    small-demo combs.
+    """
+
+    dims_list = list(dims)
+    if len(dims_list) % 2 != 0:
+        raise ValueError("dims must be [A0, B0, A1, B1, ...]")
+    if not dims_list:
+        raise ValueError("at least one input-output slot is required")
+
+    current = np.asarray(comb, dtype=complex)
+    current_dims = dims_list
+    n_slots = len(dims_list) // 2
+    total_dim = int(np.prod(dims_list))
+    if current.shape != (total_dim, total_dim):
+        raise ValueError("comb shape is incompatible with dims")
+
+    for slot in reversed(range(n_slots)):
+        output_axis = 2 * slot + 1
+        input_dim = current_dims[2 * slot]
+        traced_dims = current_dims[:output_axis] + current_dims[output_axis + 1 :]
+        traced = partial_trace(current, current_dims, [output_axis])
+
+        if slot == 0:
+            target = np.eye(input_dim, dtype=complex)
+            if not np.allclose(traced, target, atol=tol):
+                return False
+            continue
+
+        previous_dims = current_dims[: 2 * slot]
+        previous = partial_trace(traced, traced_dims, [len(traced_dims) - 1]) / input_dim
+        target = np.kron(previous, np.eye(input_dim, dtype=complex))
+        if not np.allclose(traced, target, atol=tol):
+            return False
+
+        current = previous
+        current_dims = previous_dims
+
+    return True
+
+
+def comb_partial_trace_check(comb: Array, dims: list[int]) -> bool:
+    """Deprecated alias for :func:`deterministic_comb_causality_check`."""
+
+    return deterministic_comb_causality_check(comb, dims)
 
 
 def _pure_state_from_bloch(theta: float, phi: float) -> Array:
@@ -452,7 +516,7 @@ def blp_measure(channel_family: Callable[[float], Array], t_grid: Array) -> floa
         distances = []
         for time in times:
             choi = channel_family(float(time))
-            distances.append(trace_distance(apply_choi_channel(rho, choi), apply_choi_channel(sigma, choi)))
+            distances.append(trace_distance(apply_choi_channel(choi, rho), apply_choi_channel(choi, sigma)))
         increments = np.diff(distances)
         best = max(best, float(np.sum(increments[increments > 0.0])))
     return best

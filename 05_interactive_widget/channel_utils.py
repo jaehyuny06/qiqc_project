@@ -2,10 +2,11 @@
 
 The Choi convention used here is
 
-    C_E = sum_ij |i><j| tensor E(|i><j|)
+    C_E = sum_ij |i><j|_A tensor E(|i><j|)_B
 
 with the input system as the first tensor factor.  The Choi matrices are
-unnormalized, so a trace-preserving qubit channel has ``trace(C) = 2``.
+unnormalized, so a trace-preserving qubit channel has ``Tr(C_E) = d_in = 2``
+and ``Tr_B(C_E) = I_A``.
 """
 
 from __future__ import annotations
@@ -206,7 +207,7 @@ def is_tp(choi: Array, tol: float = 1e-9) -> bool:
     Returns
     -------
     bool
-        ``True`` when ``Tr_out(C)`` is numerically the identity.
+        ``True`` when ``Tr_B(C_E)`` is numerically the identity on system A.
     """
     d_in, _ = infer_channel_dims(choi)
     return bool(np.linalg.norm(partial_trace_output(choi) - np.eye(d_in)) <= tol)
