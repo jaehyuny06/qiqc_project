@@ -130,6 +130,51 @@ def run_process_tomography(circuit: Any, backend: Any, shots: int = 4096) -> Pro
     )
 
 
+def build_target_qiskit_circuits() -> dict[str, Any]:
+    """Return the Qiskit circuits used as tomography targets.
+
+    The offline fixtures analyze the ideal unitary actions of these circuits,
+    then attach deterministic noise models at the Choi-matrix level. Keeping
+    the circuit objects visible in the notebook makes the simulated target
+    gates explicit without requiring a live IBM backend.
+    """
+    try:
+        from qiskit import QuantumCircuit
+    except ImportError as exc:
+        raise ImportError(
+            "build_target_qiskit_circuits requires qiskit. "
+            "Install 02_ibm_experiment/requirements.txt to draw native Qiskit circuits."
+        ) from exc
+
+    x_circuit = QuantumCircuit(1, name="X")
+    x_circuit.x(0)
+
+    h_circuit = QuantumCircuit(1, name="H")
+    h_circuit.h(0)
+
+    cnot_circuit = QuantumCircuit(2, name="CNOT")
+    cnot_circuit.cx(0, 1)
+
+    return {"X": x_circuit, "H": h_circuit, "CNOT": cnot_circuit}
+
+
+def plot_target_circuit_diagrams(save_path: str | Path | None = None) -> Any:
+    """Plot the target X, H, and CNOT circuit diagrams with Qiskit."""
+    import matplotlib.pyplot as plt
+
+    circuits = build_target_qiskit_circuits()
+    fig, axes = plt.subplots(1, 3, figsize=(8.2, 2.45), constrained_layout=True)
+    for ax, gate in zip(axes, ("X", "H", "CNOT"), strict=True):
+        circuits[gate].draw("mpl", ax=ax)
+        ax.set_title(f"{gate} target", fontsize=10)
+    fig.suptitle("Qiskit target circuits for offline QPT fixtures", fontsize=11)
+    if save_path is not None:
+        out_path = Path(save_path)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(out_path, dpi=180, bbox_inches="tight")
+    return fig
+
+
 def linear_inversion_choi(measurement_data: dict[str, Any]) -> np.ndarray:
     """Reconstruct a Choi matrix by linear inversion."""
     if "choi" in measurement_data:
