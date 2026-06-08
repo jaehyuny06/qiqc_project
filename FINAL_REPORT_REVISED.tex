@@ -260,6 +260,72 @@ $\E(I)=I$이면 \textbf{unital}, 즉 완전 무질서 상태($I/2$, 구의 중�
 입력 계 $A$와 똑같은 짝을 하나 더 준비해 최대 얽힘 상태를 만든 뒤, 한쪽에만 채널 $\E$를 통과시킨다. 그 결과 남는 합동 상태가 Choi 행렬이다 --- \emph{채널 전체를 사진 한 장으로 찍은 것}.
 \end{conceptbox}
 
+\subsection{Choi 행렬이란 정확히 무엇인가 --- 세 가지 그림}
+
+위 한 문장만으로는 ``그래서 Choi 행렬이 \emph{대체 무슨 행렬}인가''가 잘 와닿지 않는다. 그래서 같은 대상을 세 가지 구체적인 그림으로 본다. 세 그림은 모두 \emph{같은} 행렬을 가리키며, 각각이 ``왜 이 한 행렬이 채널 전체를 담는가''와 ``왜 CP가 고유값 조건이 되는가''를 다른 각도에서 설명한다.
+
+\paragraph{그림 1 --- 채널의 ``응답표''(블록 행렬).}
+양자 채널 $\E$는 \emph{선형}이다. 따라서 임의의 입력 $\rho$를 기저 성분으로 펼치면
+\[
+\rho=\sum_{i,j}\rho_{ij}\,|i\rangle\langle j|
+\quad\Longrightarrow\quad
+\E(\rho)=\sum_{i,j}\rho_{ij}\,\E(|i\rangle\langle j|)
+\]
+이 된다. 즉 \textbf{채널이 각 기본 블록 $|i\rangle\langle j|$에 무엇을 하는지($\E(|i\rangle\langle j|)$)만 알면, 임의의 입력에 대한 답을 전부 안다.} Choi 행렬은 바로 이 ``응답들''을 한 곳에 모아 둔 표다. $(i,j)$ 칸에 $\E(|i\rangle\langle j|)$를 넣은 블록 행렬:
+\[
+C_\E=
+\begin{pmatrix}
+\E(|0\rangle\langle 0|) & \E(|0\rangle\langle 1|) & \cdots\\
+\E(|1\rangle\langle 0|) & \E(|1\rangle\langle 1|) & \cdots\\
+\vdots & & \ddots
+\end{pmatrix}.
+\]
+큐비트($d=2$)라면 $2\times2$ 칸 각각이 $2\times2$ 블록이므로 전체는 $4\times4$ 행렬이다. 이 그림에서 Choi 행렬은 신비로운 대상이 아니라 \emph{채널의 완전한 응답 사전(lookup table)}일 뿐이다.
+
+\begin{intuitionbox}
+\textbf{직관:} 채널이 선형이라서, ``모든 입력에 대한 답''은 ``기저 블록 $d^2$개에 대한 답''으로 압축된다. Choi 행렬은 그 $d^2$개의 답을 한 행렬에 깔끔히 정리한 것이다. 그래서 \emph{하나의 행렬이 채널 전체와 동등}하다(정리 \ref{thm:recover}이 이 ``되살리기''를 식으로 보장).
+\end{intuitionbox}
+
+\paragraph{그림 2 --- 얽힌 쌍의 절반을 통과시키기(실험 레시피).}
+그림 1에는 함정이 하나 있다. $|0\rangle\langle0|,|1\rangle\langle1|$은 실제 상태(밀도행렬)지만, $|0\rangle\langle1|$ 같은 \emph{비대각} 블록은 그 자체로는 물리적 상태가 아니다($\Tr=0$, 음의 고유값). 그러니 ``$|0\rangle\langle1|$을 채널에 넣어 보라''는 직접 실행할 수 없다. 그렇다면 응답 $\E(|0\rangle\langle1|)$는 어떻게 물리적으로 얻는가? 바로 \textbf{얽힘}이 답이다.
+
+\begin{conceptbox}{Choi 행렬을 만드는 실험 레시피}
+\begin{enumerate}[leftmargin=1.6em]
+  \item 똑같은 두 계 $A,B$를 최대 얽힘 상태 $|\Phi\rangle=\tfrac1{\sqrt d}\sum_i|i\rangle_A|i\rangle_B$로 준비한다.
+  \item 계 $A$는 \emph{건드리지 않고} 그대로 둔다. 계 $B$만 채널 $\E$에 통과시킨다.
+  \item 남은 두 계의 합동 상태를 (단층촬영으로) 측정한다. 그 상태가 (정규화된) Choi 행렬 $\rho_\E=C_\E/d$이다.
+\end{enumerate}
+\end{conceptbox}
+
+왜 이 \emph{한 번의} 실험이 채널 전체를 담는가? 최대 얽힘 상태에는 모든 기저 입력이 ``상관(correlation)'' 형태로 동시에 들어 있어서, $B$에만 채널을 걸어도 $A$와의 상관에 비대각 응답 $\E(|i\rangle\langle j|)$까지 전부 기록되기 때문이다(이를 보장하는 것이 성질 \ref{prop:ricochet}의 전치 항등식이다). 직접 넣을 수 없던 $|i\rangle\langle j|$의 응답을, 얽힘을 통해 \emph{간접적으로 한꺼번에} 읽어내는 것이다.
+
+\begin{intuitionbox}
+\textbf{직관:} 채널을 검사할 때, 입력을 하나씩 넣는 대신 ``완벽히 상관된 기준 신호(얽힌 쌍)''의 절반을 통과시킨다. 채널이 남긴 흔적이 쌍의 상관에 고스란히 새겨져, 단 한 번의 측정으로 채널의 모든 응답을 캡처한다.
+\end{intuitionbox}
+
+\paragraph{그림 3 --- Choi 행렬은 사실 진짜 양자 상태다 ($\Rightarrow$ 왜 CP $\iff$ 고유값 $\ge0$).}
+그림 2의 레시피에서 마지막에 손에 쥐는 것은 \emph{실제 실험으로 만들어 낸 두 계의 합동 상태}다. 채널 $\E$가 물리적(CP)이라면, 그 출력은 당연히 정당한 양자 상태여야 한다 --- 즉 에르미트이고, 고유값이 음이 아니며($\succeq0$), (정규화하면) 대각합이 $1$. \textbf{이것이 ``$\E$ CP $\iff C_\E\succeq0$''의 직관적 정체다.}
+
+거꾸로, 어떤 ``채널''이 만든 Choi 행렬에 \emph{음의 고유값}이 하나라도 있다면, 그것은 ``음의 확률을 가진 상태''를 뜻하므로 물리적으로 불가능하다. 따라서 그 사상은 진짜 채널이 아니다. 추상적이던 ``완전양성성''이 여기서는 매우 구체적인 문장이 된다:
+\begin{center}
+\emph{``얽힌 쌍의 절반을 통과시켜 얻은 검사 상태에 음의 확률이 없다.''}
+\end{center}
+``완전(completely)''이라는 단어가 붙는 이유도 이 그림에서 분명하다 --- 채널을 계 $B$에만 걸었는데도 \emph{건드리지 않은 참조계 $A$까지 포함한} 합동 상태가 정당해야 하기 때문이다(2.4절의 전치 사상 반례가 바로 이 지점에서 실패한다).
+
+\begin{example}[가장 쉬운 예: identity 채널]\label{ex:idchoi}
+아무것도 하지 않는 채널 $\E=\id$을 레시피에 넣으면, $B$를 통과시켜도 변화가 없으므로 결과는 처음의 얽힘 상태 그대로다. 따라서
+\[
+C_{\id}=|\Omega\rangle\langle\Omega|,\quad |\Omega\rangle=|00\rangle+|11\rangle,
+\qquad
+C_{\id}=\begin{pmatrix}1&0&0&1\\0&0&0&0\\0&0&0&0\\1&0&0&1\end{pmatrix}.
+\]
+고유값은 $\{2,0,0,0\}$($\succeq0\Rightarrow$ CP)이고 $\rank=1$ --- ``잡음 갈래가 없다''는 사실이 rank-1로 나타난다. 즉 \textbf{identity 채널의 Choi 행렬은 최대 얽힘 상태 그 자체}이며, 이것이 그림 \ref{fig:theory-choi-examples}에서 identity가 가장 또렷한 구조를 보이는 이유다.
+\end{example}
+
+\subsection{형식적 정의와 핵심 정리}
+
+이제 세 그림을 하나의 식으로 적는다. ``응답표''(그림 1)와 ``얽힌 쌍 통과''(그림 2)는 정확히 같은 행렬이며, 다음 정의의 두 표현이 그 동일함을 나타낸다.
+
 \begin{definition}[Choi 행렬, input-first 규약]
 \[
 C_\E=\sum_{i,j}|i\rangle\langle j|_A\otimes\E(|i\rangle\langle j|)_B=(\id_A\otimes\E)(|\Omega\rangle\langle\Omega|)\in\Lin(\Hcal_A\otimes\Hcal_B).
