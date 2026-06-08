@@ -148,7 +148,7 @@
 기초 양자역학에서 한 양자계의 상태는 상태벡터 $|\psi\rangle$로 적는다. qubit은 $|\psi\rangle=\alpha|0\rangle+\beta|1\rangle$, $|\alpha|^2+|\beta|^2=1$처럼 두 basis 상태의 superposition으로 나타난다. 이렇게 단 하나의 벡터로 완전히 적히는 상태를 \textbf{pure state}라 한다. 그러나 실제로는 ``70\%로 $|0\rangle$, 30\%로 $|1\rangle$''처럼 고전적 확률이 섞인 \textbf{mixed state}가 흔하고, 이는 하나의 벡터로 적을 수 없다. 이에 \textbf{density matrix} $\rho$를 도입했다.
 
 \begin{conceptbox}{개념: density matrix $\rho$}
-pure state는 $\rho=|\psi\rangle\langle\psi|$, mixed state는 확률 $p_k$로 $\rho=\sum_k p_k|\psi_k\rangle\langle\psi_k|$로 적는다. 직관적으로 ``상태에 대해 알고 있는 모든 통계''를 담은 행렬이라고 생각할 수 있다.
+pure state는 $\rho=|\psi\rangle\langle\psi|$, mixed state는 확률 $p_k$로 $\rho=\sum_k p_k|\psi_k\rangle\langle\psi_k|$로 적는다. 직관적으로 상태에 대해 알고 있는 모든 통계를 담은 행렬이라고 생각할 수 있다.
 \end{conceptbox}
 
 \begin{definition}[density matrix]
@@ -212,7 +212,7 @@ $(M\otimes I)|\Omega\rangle=\sum_{ij}M_{ji}|j\rangle|i\rangle$, $(I\otimes M^T)|
 
 \subsection{quantum channel: unitary만으로 부족한 이유}
 
-닫힌 계의 변화는 unitary $U$로 $\rho\mapsto U\rho U^\dagger$이다(noise가 없는 이상적 경우). 그러나 실제 장치에서는 qubit이 environment와 상호작용해 에너지가 새는 \textbf{relaxation}, 위상이 흐트러지는 \textbf{dephasing}, 그리고 calibration error가 함께 일어난다. 이러한 ``열린 계''의 변화는 unitary 하나로 적을 수 없고, 더 일반적인 \textbf{quantum channel}이 필요하다.
+닫힌 계의 변화는 unitary $U$로 $\rho\mapsto U\rho U^\dagger$이다(noise가 없는 이상적 경우). 그러나 실제 장치에서는 qubit이 environment와 상호작용해 에너지가 새는 \textbf{relaxation}, 위상이 흐트러지는 \textbf{dephasing}, 그리고 calibration error가 함께 일어난다. 이렇게 열린 계의 변화는 unitary 하나로 적을 수 없고, 더 일반적인 \textbf{quantum channel}이 필요하다.
 
 \begin{conceptbox}{개념: quantum channel $\E$와 CP/TP}
 quantum channel은 density matrix를 density matrix로 보내는 linear map이다. 물리적이려면 \textbf{TP}(전체 확률 보존)와 \textbf{CP}(보이지 않게 entangled된 계까지 고려해도 결과가 정상)를 만족해야 한다.
@@ -263,7 +263,7 @@ $\E(I)=I$이면 \textbf{unital}, 즉 maximally mixed state($I/2$, 구의 중심)
 \section{서론: 왜 Choi matrix인가}
 %==================================================================
 
-모든 linear map이 물리적 channel은 아니다. channel은 TP여야 하고, reference system과의 entanglement까지 고려한 CP여야 한다. 이 조건, 특히 ``아무리 큰 reference system을 붙여도''라는 CP는 처음에는 막막하게 느껴진다. 이때 \textbf{Choi matrix가 이 막막함을 해소한다}. CP는 ``어떤 행렬의 eigenvalue가 음이 아니다''로, TP는 ``어떤 partial trace가 identity가 된다''로 내려온다.
+모든 linear map이 물리적 channel은 아니다. channel은 TP여야 하고, reference system과의 entanglement까지 고려한 CP여야 한다. 이 조건 중 reference system을 아무리 크게 붙여도 정당해야 한다는 CP는 처음에는 다루기 까다롭다. 이때 \textbf{Choi matrix를 쓰면 이 조건이 단순해진다}. CP는 어떤 행렬의 eigenvalue가 음이 아니라는 조건으로, TP는 어떤 partial trace가 identity가 된다는 조건으로 내려온다.
 
 \begin{conceptbox}{개념: Choi matrix (이 보고서의 주인공)}
 입력 계 $A$와 똑같은 짝을 하나 더 준비해 maximally entangled state를 만든 뒤, 한쪽에만 channel $\E$를 통과시킨다. 그 결과 남는 joint state가 Choi matrix이다. 즉 channel 전체를 사진 한 장으로 찍은 것이라고 생각할 수 있다.
@@ -271,16 +271,16 @@ $\E(I)=I$이면 \textbf{unital}, 즉 maximally mixed state($I/2$, 구의 중심)
 
 \subsection{Choi matrix란 정확히 무엇인가 --- 세 가지 그림}
 
-위 한 문장만으로는 ``그래서 Choi matrix가 대체 무슨 행렬인가''가 잘 와닿지 않는다. 이에 같은 대상을 세 가지 구체적인 그림으로 보았다. 세 그림은 모두 같은 행렬을 가리키며, 각각이 ``왜 이 한 행렬이 channel 전체를 담는가''와 ``왜 CP가 eigenvalue 조건이 되는가''를 다른 각도에서 설명한다.
+위 한 문장만으로는 Choi matrix가 구체적으로 어떤 행렬인지 잘 와닿지 않는다. 이에 같은 대상을 세 가지 그림으로 나누어 보았다. 세 그림은 모두 같은 행렬을 가리키며, 이 한 행렬이 어떻게 channel 전체를 담는지, 그리고 왜 CP가 eigenvalue 조건이 되는지를 각각 다른 각도에서 설명한다.
 
-\paragraph{그림 1 --- channel의 ``응답표''(block matrix).}
+\paragraph{그림 1 --- channel의 응답표 (block matrix).}
 quantum channel $\E$는 linear하다. 이에 임의의 입력 $\rho$를 basis 성분으로 펼치면
 \[
 \rho=\sum_{i,j}\rho_{ij}\,|i\rangle\langle j|
 \quad\Longrightarrow\quad
 \E(\rho)=\sum_{i,j}\rho_{ij}\,\E(|i\rangle\langle j|)
 \]
-이 된다. 즉 \textbf{channel이 각 기본 block $|i\rangle\langle j|$에 무엇을 하는지($\E(|i\rangle\langle j|)$)만 알면, 임의의 입력에 대한 답을 전부 알 수 있었다.} Choi matrix는 바로 이 ``응답들''을 한 곳에 모아 둔 표이다. $(i,j)$ 칸에 $\E(|i\rangle\langle j|)$를 넣은 block matrix로 나타낼 수 있다:
+이 된다. 즉 \textbf{channel이 각 기본 block $|i\rangle\langle j|$에 무엇을 하는지($\E(|i\rangle\langle j|)$)만 알면, 임의의 입력에 대한 답을 전부 알 수 있었다.} Choi matrix는 바로 이 응답들을 한 곳에 모아 둔 표이다. $(i,j)$ 칸에 $\E(|i\rangle\langle j|)$를 넣은 block matrix로 나타낼 수 있다:
 \[
 C_\E=
 \begin{pmatrix}
@@ -289,14 +289,14 @@ C_\E=
 \vdots & & \ddots
 \end{pmatrix}.
 \]
-qubit($d=2$)이라면 $2\times2$ 칸 각각이 $2\times2$ block이므로 전체는 $4\times4$ 행렬이 된다. 이 그림에서 Choi matrix는 신비로운 대상이 아니라 channel의 완전한 응답 사전(lookup table)일 뿐이라고 할 수 있다.
+qubit($d=2$)이라면 $2\times2$ 칸 각각이 $2\times2$ block이므로 전체는 $4\times4$ 행렬이 된다. 이 그림에서 Choi matrix는 channel의 응답을 한 표에 모아 둔 lookup table에 해당한다.
 
 \begin{intuitionbox}
-\textbf{직관:} channel이 linear하기 때문에, ``모든 입력에 대한 답''이 ``기본 block $d^2$개에 대한 답''으로 압축된다. Choi matrix는 그 $d^2$개의 답을 한 행렬에 정리한 것이다. 이를 통해 하나의 행렬이 channel 전체와 동등해진다(정리 \ref{thm:recover}이 이 ``되살리기''를 식으로 보장한다).
+\textbf{직관:} channel이 linear하기 때문에, 모든 입력에 대한 답이 기본 block $d^2$개에 대한 답으로 압축된다. Choi matrix는 그 $d^2$개의 답을 한 행렬에 정리한 것이다. 이를 통해 하나의 행렬이 channel 전체와 동등해진다(정리 \ref{thm:recover}이 이 복원을 식으로 보장한다).
 \end{intuitionbox}
 
 \paragraph{그림 2 --- entangled 쌍의 절반을 통과시키기(실험 레시피).}
-그림 1에는 함정이 하나 있다. $|0\rangle\langle0|,|1\rangle\langle1|$은 실제 상태(density matrix)이지만, $|0\rangle\langle1|$ 같은 비대각 block은 그 자체로는 물리적 상태가 아니다($\Tr=0$, 음의 eigenvalue). 이에 ``$|0\rangle\langle1|$을 channel에 넣어 보라''는 직접 실행할 수 없다. 그렇다면 응답 $\E(|0\rangle\langle1|)$는 어떻게 물리적으로 얻을 수 있는가. 바로 \textbf{entanglement}이 답이 된다.
+그림 1에는 함정이 하나 있다. $|0\rangle\langle0|,|1\rangle\langle1|$은 실제 상태(density matrix)이지만, $|0\rangle\langle1|$ 같은 비대각 block은 그 자체로는 물리적 상태가 아니다($\Tr=0$, 음의 eigenvalue). 이에 $|0\rangle\langle1|$을 channel에 직접 넣어 볼 수는 없다. 그렇다면 응답 $\E(|0\rangle\langle1|)$는 어떻게 물리적으로 얻을 수 있는가. 이때 entanglement을 쓰면 된다.
 
 \begin{conceptbox}{Choi matrix를 만드는 실험 레시피}
 \begin{enumerate}[leftmargin=1.6em]
@@ -309,17 +309,17 @@ qubit($d=2$)이라면 $2\times2$ 칸 각각이 $2\times2$ block이므로 전체�
 왜 이 한 번의 실험이 channel 전체를 담는가. maximally entangled state에는 모든 basis 입력이 correlation 형태로 동시에 들어 있어서, $B$에만 channel을 걸어도 $A$와의 correlation에 비대각 응답 $\E(|i\rangle\langle j|)$까지 전부 기록되기 때문이라고 생각된다(이를 보장하는 것이 성질 \ref{prop:ricochet}의 transpose 항등식이다). 직접 넣을 수 없던 $|i\rangle\langle j|$의 응답을, entanglement을 통해 간접적으로 한꺼번에 읽어낼 수 있었다.
 
 \begin{intuitionbox}
-\textbf{직관:} channel을 검사할 때, 입력을 하나씩 넣는 대신 ``완벽히 correlated된 기준 신호(entangled 쌍)''의 절반을 통과시킨다. channel이 남긴 흔적이 쌍의 correlation에 그대로 새겨져, 단 한 번의 측정으로 channel의 모든 응답을 잡아낼 수 있었다.
+\textbf{직관:} channel을 검사할 때 입력을 하나씩 넣는 대신, 완벽히 correlated된 기준 신호인 entangled 쌍의 절반을 통과시킨다. channel이 남긴 흔적이 쌍의 correlation에 그대로 새겨져, 단 한 번의 측정으로 channel의 모든 응답을 잡아낼 수 있었다.
 \end{intuitionbox}
 
 \paragraph{그림 3 --- Choi matrix는 사실 진짜 양자 상태다 ($\Rightarrow$ 왜 CP $\iff$ eigenvalue $\ge0$).}
-그림 2의 레시피에서 마지막에 손에 쥐는 것은 실제 실험으로 만들어 낸 두 계의 joint state이다. channel $\E$가 물리적(CP)이라면, 그 출력은 당연히 정당한 양자 상태여야 한다. 즉 Hermitian이고, eigenvalue가 음이 아니며($\succeq0$), 정규화하면 trace가 $1$이다. \textbf{이것이 ``$\E$ CP $\iff C_\E\succeq0$''의 직관적 정체라고 할 수 있다.}
+그림 2의 레시피에서 마지막에 손에 쥐는 것은 실제 실험으로 만들어 낸 두 계의 joint state이다. channel $\E$가 물리적(CP)이라면, 그 출력은 당연히 정당한 양자 상태여야 한다. 즉 Hermitian이고, eigenvalue가 음이 아니며($\succeq0$), 정규화하면 trace가 $1$이다. \textbf{이것이 $\E$ CP $\iff C_\E\succeq0$의 직관적 정체라고 할 수 있다.}
 
-거꾸로, 어떤 ``channel''이 만든 Choi matrix에 음의 eigenvalue가 하나라도 있다면, 그것은 ``음의 확률을 가진 상태''를 뜻하므로 물리적으로 불가능하다. 이에 그 map은 진짜 channel이 아니다. 추상적이던 ``complete positivity''가 여기서는 매우 구체적인 문장이 된다:
+거꾸로 어떤 map이 만든 Choi matrix에 음의 eigenvalue가 하나라도 있다면, 그것은 음의 확률을 가진 상태를 뜻하므로 물리적으로 불가능하다. 이에 그 map은 channel이 될 수 없다. 추상적이던 complete positivity가 여기서는 다음과 같은 구체적인 조건이 된다:
 \begin{center}
-\emph{``entangled 쌍의 절반을 통과시켜 얻은 검사 상태에 음의 확률이 없다.''}
+\emph{entangled 쌍의 절반을 통과시켜 얻은 검사 상태에 음의 확률이 없다.}
 \end{center}
-``completely''라는 단어가 붙는 이유도 이 그림에서 분명해진다. channel을 계 $B$에만 걸었는데도 건드리지 않은 reference system $A$까지 포함한 joint state가 정당해야 하기 때문이다(앞서 본 transpose map 반례가 바로 이 지점에서 실패한다).
+completely라는 단어가 붙는 이유도 이 그림에서 분명해진다. channel을 계 $B$에만 걸었는데도 건드리지 않은 reference system $A$까지 포함한 joint state가 정당해야 하기 때문이다(앞서 본 transpose map 반례가 바로 이 지점에서 실패한다).
 
 \begin{example}[가장 쉬운 예: identity channel]\label{ex:idchoi}
 아무것도 하지 않는 channel $\E=\id$을 레시피에 넣으면, $B$를 통과시켜도 변화가 없으므로 결과는 처음의 entangled state 그대로이다. 이에 따라
@@ -333,7 +333,7 @@ eigenvalue는 $\{2,0,0,0\}$($\succeq0\Rightarrow$ CP)이고 $\rank=1$로 나타�
 
 \subsection{형식적 정의와 핵심 정리}
 
-이제 세 그림을 하나의 식으로 적었다. ``응답표''(그림 1)와 ``entangled 쌍 통과''(그림 2)는 정확히 같은 행렬이며, 다음 정의의 두 표현이 그 동일함을 나타낸다.
+이제 세 그림을 하나의 식으로 적었다. 응답표(그림 1)와 entangled 쌍 통과(그림 2)는 정확히 같은 행렬이며, 다음 정의의 두 표현이 그 동일함을 나타낸다.
 
 \begin{definition}[Choi matrix, input-first 규약]
 \[
@@ -360,7 +360,7 @@ CP $\Leftarrow$: $C_\E\succeq0$이면 $C_\E=\sum_k|w_k\rangle\langle w_k|$로 �
 \end{proof}
 
 \begin{mathbox}{이 장의 결론}
-``channel이 물리적인가''가 두 개의 linear algebra 점검으로 환원된다.
+channel이 물리적인지 여부가 두 개의 linear algebra 점검으로 환원된다.
 \[
 \underbrace{C_\E\succeq0}_{\text{eigenvalue}\ge0\,(\text{CP})}\qquad\text{그리고}\qquad\underbrace{\Tr_B(C_\E)=I_A}_{\text{partial trace}=\text{identity}\,(\text{TP})}.
 \]
@@ -473,7 +473,7 @@ Composition check & error $\approx2.48\times10^{-16}$ & $N_{\E_2\circ\E_1}=N_{\E
 표 \ref{tab:theory-results}을 한 줄씩 보면 다음과 같다. identity channel의 Choi rank가 1이라는 것은 noise 갈래가 없음을 뜻하므로 깨끗한 unitary임을 확인할 수 있었다. depolarizing의 최소 eigenvalue가 $0.15>0$이므로 모든 eigenvalue가 음이 아니어서 CP이고 unital도 True임을 확인할 수 있었다. amplitude damping은 TP=True이지만 unital=False로 나와, 앞 절에서 본 중심 이동을 수치가 그대로 확인할 수 있었다. 마지막 두 줄의 round-trip과 composition 오차가 $10^{-16}$ 수준이라는 것은 네 가지 표현이 서로 일치함을 의미한다고 생각된다.
 
 \begin{remark}
-perturbed identity는 Hermitian이고 $\Tr_B\approx I$여도 작은 음의 eigenvalue 하나로 CP=False가 된다. 정리 \ref{thm:cj}의 $C_\E\succeq0$은 ``거의''를 허용하지 않는다. 이는 뒤의 tomography에서 raw reconstruction을 그대로 믿으면 안 되는 이유라고 생각된다. shot noise가 비물리적(음의 eigenvalue) Choi를 만들면 CPTP projection이 필요하다.
+perturbed identity는 Hermitian이고 $\Tr_B\approx I$여도 작은 음의 eigenvalue 하나로 CP=False가 된다. 정리 \ref{thm:cj}의 $C_\E\succeq0$은 거의 만족하는 정도로는 안 되고 정확히 만족해야 한다. 이는 뒤의 tomography에서 raw reconstruction을 그대로 믿으면 안 되는 이유라고 생각된다. shot noise가 비물리적(음의 eigenvalue) Choi를 만들면 CPTP projection이 필요하다.
 \end{remark}
 
 %==================================================================
@@ -485,7 +485,7 @@ perturbed identity는 Hermitian이고 $\Tr_B\approx I$여도 작은 음의 eigen
 이론적 Choi는 코드로 바로 계산할 수 있지만, 실제 장치에서 어떤 channel이 작용했는지는 직접 알 수 없다. $X$ gate를 실행해도 이상적 $X$ 뒤에 amplitude damping, depolarizing noise, coherent error가 섞일 수 있다.
 
 \begin{conceptbox}{개념: process tomography}
-의료 CT처럼 여러 ``각도''의 정보를 합쳐 내부를 복원한다. 알 수 없는 channel에 정보적으로 완전한 입력 $\{\rho_a\}$를 넣고 출력 $\E(\rho_a)$를 측정한 뒤, linear 관계 $\E(\rho_a)=\Tr_A[(\rho_a^T\otimes I)C_\E]$(정리 \ref{thm:recover})를 $C_\E$에 대해 푼다(\textbf{linear inversion}).
+의료 CT처럼 여러 각도의 정보를 합쳐 내부를 복원한다. 알 수 없는 channel에 정보적으로 완전한 입력 $\{\rho_a\}$를 넣고 출력 $\E(\rho_a)$를 측정한 뒤, linear 관계 $\E(\rho_a)=\Tr_A[(\rho_a^T\otimes I)C_\E]$(정리 \ref{thm:recover})를 $C_\E$에 대해 푼다(\textbf{linear inversion}).
 \end{conceptbox}
 
 \begin{definition}[CPTP projection]
@@ -526,7 +526,7 @@ X\,(d{=}2):&\ \tfrac{2(0.959583)+1}{3}=0.973055,\quad
 H\,(d{=}2):\ \tfrac{2(0.94)+1}{3}=0.960000,\\
 \mathrm{CNOT}\,(d{=}4):&\ \tfrac{4(0.92)+1}{5}=0.936000.
 \end{align*}
-즉 표의 두 fidelity는 독립적인 두 숫자가 아니라 한 공식으로 묶여 있다고 할 수 있다.
+즉 표의 두 fidelity는 한 공식으로 서로 묶여 있다고 할 수 있다.
 \end{mathbox}
 
 \begin{definition}[diamond norm]
@@ -579,11 +579,11 @@ CNOT은 2큐비트라 $C_\E\in\Lin(\mathbb C^{16})$이고, 전역 depolarizing�
 \label{fig:qpt-bloch}
 \end{figure}
 
-그림 \ref{fig:qpt-bloch}은 fidelity만으로는 설명하기 어려운 부분을 보완한다. fidelity는 하나의 숫자로 평균적 유사도를 말해 주지만, noise가 어느 방향으로 작용하는지는 직접 보여주지 않는다. 반면 Bloch 변형을 보면 구가 균일하게 줄어드는지, 특정 방향으로 이동하는지를 확인할 수 있었다. 이 진단은 그림만 보고 정성적으로 붙인 이름표가 아니라, 재구성된 Choi를 Pauli-transfer 표현으로 바꾼 뒤 affine action을 계산하여 얻은 것이다.
+그림 \ref{fig:qpt-bloch}은 fidelity만으로는 설명하기 어려운 부분을 보완한다. fidelity는 하나의 숫자로 평균적 유사도를 말해 주지만, noise가 어느 방향으로 작용하는지는 직접 보여주지 않는다. 반면 Bloch 변형을 보면 구가 균일하게 줄어드는지, 특정 방향으로 이동하는지를 확인할 수 있었다. 이 진단은 그림만 보고 정성적으로 붙인 것이 아니다. 재구성된 Choi를 Pauli-transfer 표현으로 바꾼 뒤 affine action을 계산하여 얻었다.
 
 \begin{table}[H]
 \centering\small
-\caption{1큐비트 재구성 channel의 Bloch affine 진단. $H$의 $10^{-15},10^{-12}$는 사실상 ``$0$''으로 보았다}
+\caption{1큐비트 재구성 channel의 Bloch affine 진단. $H$의 $10^{-15},10^{-12}$는 사실상 $0$으로 보았다}
 \label{tab:qpt-bloch-diagnostics}
 \begin{tabularx}{\textwidth}{lcccX}
 \toprule
@@ -613,14 +613,14 @@ CNOT & 0.920000 & 0.936000 & 0.080000 & stochastic global depolarizing-like nois
 \end{table}
 
 \begin{remark}[비물리적 재구성]
-linear inversion perturbation의 최소 eigenvalue $-0.270000$은 $\mathcal O(\varepsilon_{\mathrm{mach}})$가 아닌 진짜 음수이다(정리 \ref{thm:cj} 위반). 이에 raw reconstruction은 물리적 channel로 받아들이기 어렵고, CPTP projection으로 $C^\star\succeq0$을 회복해야 한다. 이는 결과를 예쁘게 만드는 후처리가 아니라 물리 법칙(eigenvalue $\ge0$)을 회복하는 과정이라고 생각된다.
+linear inversion perturbation의 최소 eigenvalue $-0.270000$은 $\mathcal O(\varepsilon_{\mathrm{mach}})$가 아닌 진짜 음수이다(정리 \ref{thm:cj} 위반). 이에 raw reconstruction은 물리적 channel로 받아들이기 어렵고, CPTP projection으로 $C^\star\succeq0$을 회복해야 한다. 이는 결과를 보기 좋게 만드는 후처리가 아니다. density matrix와 channel이 반드시 만족해야 하는 물리 법칙(eigenvalue $\ge0$)을 회복하는 과정이라고 생각된다.
 \end{remark}
 
 %==================================================================
 \section{작업 3 --- Channel Discrimination, diamond norm, SDP}
 %==================================================================
 
-\subsection{먼저 알아야 할 것: ``구별''은 ``비슷함''과 다른 문제}
+\subsection{먼저 알아야 할 것: 구별과 비슷함은 다른 문제}
 
 fidelity는 평균적 유사도를 말해 준다. 그러나 두 channel을 실제로 얼마나 잘 구별하는가는 별개의 문제이다. 동전을 던져 $\E_0,\E_1$ 중 하나를 주면, 원하는 입력으로 측정해 어느 쪽인지 맞히는 게임을 생각할 수 있다.
 
@@ -686,7 +686,7 @@ $\Delta$의 Choi $J=C_\Delta$($A$ 입력)에 대해
 \label{fig:sdp-advantage}
 \end{figure}
 
-단독 입력과 entangled 입력의 차이는 단순 계산상의 차이가 아니라 operational advantage이다. reference system과 entanglement을 만들면 channel 작용이 joint state의 correlation에도 흔적을 남겨, 그 추가 정보로 성공확률이 오른다($0.75\to0.875$). 더불어 2-shot 결과가 $0.968750$까지 오른 것도 자연스럽다고 생각된다. 같은 channel을 여러 번 쓸 수 있으면 한 번의 출력보다 더 많은 정보를 얻고, 두 channel의 차이가 누적되기 때문이다.
+단독 입력과 entangled 입력의 차이는 실제로 구별 성능을 끌어올리는 operational advantage로 나타났다. reference system과 entanglement을 만들면 channel 작용이 joint state의 correlation에도 흔적을 남겨, 그 추가 정보로 성공확률이 오른다($0.75\to0.875$). 더불어 2-shot 결과가 $0.968750$까지 오른 것도 자연스럽다고 생각된다. 같은 channel을 여러 번 쓸 수 있으면 한 번의 출력보다 더 많은 정보를 얻고, 두 channel의 차이가 누적되기 때문이다.
 
 \begin{property}[병렬 사용은 곱 channel의 diamond norm]
 $n$번 병렬 사용 전략의 성공확률은 $\tfrac12+\tfrac14\diamondnorm{\E_0^{\otimes n}-\E_1^{\otimes n}}$로 차이가 누적된다. 다만 차원이 $d_A^n$으로 지수적으로 증가하여 SDP 비용이 급증한다.
@@ -719,7 +719,7 @@ Ancilla-assisted input & 0.875000 & 전체 $\diamondnorm{\Delta}$ (정리 \ref{t
 지금까지의 Choi는 하나의 입력-출력 관계를 설명했다. 그러나 시간 과정에서 계가 environment와 여러 번 상호작용하고 그 environment가 다음 시점에도 기억을 남기면 단일 channel로 설명되지 않는다.
 
 \begin{conceptbox}{개념: Markovian 대 non-Markovian}
-\textbf{Markovian}은 기억 없는 과정으로, environment로 새어 나간 정보가 돌아오지 않는다. \textbf{non-Markovian}은 environment에 저장된 정보가 계로 되돌아올 수 있다. 각 시점 marginal이 멀쩡한 CPTP라도 시점 간 correlation이 남으면 전체는 ``기억 없는 곱''으로 분해되지 않는다.
+\textbf{Markovian}은 기억 없는 과정으로, environment로 새어 나간 정보가 돌아오지 않는다. \textbf{non-Markovian}은 environment에 저장된 정보가 계로 되돌아올 수 있다. 각 시점 marginal이 멀쩡한 CPTP라도 시점 간 correlation이 남으면 전체는 기억 없는 곱으로 분해되지 않는다.
 \end{conceptbox}
 
 \begin{definition}[dynamical map과 CP-divisibility]
@@ -753,14 +753,14 @@ RHP는 중간 전파자 $V(t+\epsilon,t)$의 CP성을 직접 본다. $g(t)=\lim_
 \label{fig:comb-trace-distance}
 \end{figure}
 
-그림 \ref{fig:comb-trace-distance}에서 exponential dephasing의 trace distance는 계속 줄어든다. 이는 두 상태를 구별할 정보가 시간이 지나며 줄어드는 상황이라고 할 수 있다. 반대로 revival dephasing에서는 trace distance가 다시 증가하는 구간이 나타나는데, 이는 단순한 noise 증가가 아니라 이전에 environment로 흘러나갔던 정보가 일부 되돌아온 것이라고 생각된다.
+그림 \ref{fig:comb-trace-distance}에서 exponential dephasing의 trace distance는 계속 줄어든다. 이는 두 상태를 구별할 정보가 시간이 지나며 줄어드는 상황이라고 할 수 있다. 반대로 revival dephasing에서는 trace distance가 다시 증가하는 구간이 나타나는데, 이는 이전에 environment로 흘러나갔던 정보가 일부 되돌아온 것이라고 생각된다.
 
 \subsection{구조적 증거: comb와 memoryless product}
 
 trace distance 곡선만으로는 다중 시점 과정 전체의 구조를 직접 볼 수 없다. 이에 전체 two-use 과정을 하나의 comb로 놓고 기억 없는 곱과 비교했다.
 
 \begin{conceptbox}{개념: quantum comb}
-여러 time slot의 입력-출력을 하나의 큰 ``Choi 같은'' operator로 묶은 것이다. 이름이 ``빗''인 것은 시간 축을 따라 단자(이빨)가 늘어선 모양 때문이라고 할 수 있다. 단일 channel에서는 안 보이는 시간 correlation과 기억 잔여물을 드러낸다.
+여러 time slot의 입력-출력을 하나의 큰 Choi-like operator로 묶은 것이다. 이름이 빗(comb)인 것은 시간 축을 따라 단자(이빨)가 늘어선 모양 때문이라고 할 수 있다. 단일 channel에서는 안 보이는 시간 correlation과 기억 잔여물을 드러낸다.
 \end{conceptbox}
 
 \begin{definition}[quantum comb의 인과 위계]
@@ -780,7 +780,7 @@ comb 합성은 공유 계의 partial trace와 transpose를 결합한 \textbf{lin
 \end{definition}
 
 \begin{conceptbox}{개념: collision model}
-계가 environment 입자들과 차례로 ``충돌''하는데, 같은 environment를 재사용하면 첫 충돌의 흔적이 다음 충돌에 영향을 준다. 즉 environment 재사용이 기억의 원천이 된다.
+계가 environment 입자들과 차례로 충돌하는데, 같은 environment를 재사용하면 첫 충돌의 흔적이 다음 충돌에 영향을 준다. 즉 environment 재사용이 기억의 원천이 된다.
 \end{conceptbox}
 
 \begin{figure}[H]
@@ -794,7 +794,7 @@ comb 합성은 공유 계의 partial trace와 transpose를 결합한 \textbf{lin
 $C\in\Lin(\mathbb C^{16})$, 최소 eigenvalue $-1.774\times10^{-16}=\mathcal O(\varepsilon_{\mathrm{mach}})\Rightarrow C\succeq0$(물리적). 인과 위계=True. 그러나 곱 분해 가능성=False, $\eta=\onenorm{C-C_{\mathrm{prod}}}/\onenorm{C}\approx0.5307\neq0$. \textbf{이 $\eta\neq0$이 기억 효과의 정량적 핵심 증거이다.}
 \end{mathbox}
 
-기억은 각 시점 marginal이 이상해서가 아니라 시점 간 correlation에서 나온다. 다음 그림이 이를 보여준다.
+기억은 각 시점 marginal 자체보다 시점 간 correlation에서 나온다고 생각된다. 다음 그림이 이를 보여준다.
 
 \begin{figure}[H]
 \centering
@@ -844,7 +844,7 @@ Widget은 정리 \ref{thm:cj}의 두 조건을 실시간으로 보여준다. 수
 parameter를 CP 영역 밖으로 옮기면 $C_\E$에 음의 eigenvalue가 나타난다(정리 \ref{thm:cj} 위반). 성분 변화는 작아 보여도 $\min\mathrm{eig}(C_\E)<0$이 되는 순간 비물리적이 된다. 이는 앞서 본 perturbed identity, 비물리적 재구성과 같은 현상의 대화형 버전이라고 할 수 있다.
 \end{property}
 
-이에 따라 widget은 단순 시각화가 아니라 작업 1의 CP/TP 판정, 작업 2의 noise 진단($M,\vec t$), 작업 3의 channel 차이를 한 화면에서 잇는 마지막 연결 고리라고 생각된다.
+이에 따라 widget은 작업 1의 CP/TP 판정, 작업 2의 noise 진단($M,\vec t$), 작업 3의 channel 차이를 한 화면에서 잇는 역할을 한다고 생각된다.
 
 %==================================================================
 \section{통합 해석과 한계}
